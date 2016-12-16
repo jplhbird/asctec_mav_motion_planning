@@ -70,6 +70,8 @@ private:
     void send_velo_control(void);
 
     ros::NodeHandle n;
+    ros::NodeHandle pnh_;
+
     ros::Publisher pub;
     ros::Publisher pub2;
 
@@ -84,12 +86,32 @@ private:
 
     ros::Subscriber sub;
 
+    /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"
+    /**
+     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
+     * It is only relevant, when this interface is used to send roll/pitch (or x/y velocity when in GPS mode) commands to the LLP.
+     */
+    int k_stick_;
+
+    /// gain from AutoPilot values to 1/1000 degree for the input from the yaw "stick"
+    /**
+     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
+     * It is only relevant, when this interface is used to send yaw commands to the LLP.
+     */
+    int k_stick_yaw_;
+
+
    // ros::Rate llcmb_pubrate;
 
 };
 
-TeleopIMU::TeleopIMU()
+TeleopIMU::TeleopIMU():
+pnh_("~/fcu")
 {
+	pnh_.param("k_stick", k_stick_, 25);
+	pnh_.param("k_stick_yaw", k_stick_yaw_, 120);
+
+
     pub=n.advertise<geometry_msgs::Twist>("turtle1/cmd_vel",1);
 
 
@@ -119,7 +141,54 @@ TeleopIMU::TeleopIMU()
 
 
 void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata){
+	//k_stick_yaw_
 
+	//int k_stick_;
+
+
+	//the command is in real angle and real angular velocity
+	//roll and pitch angle cmd  =real_angle*1000/K_stick
+
+	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
+
+	asctec_hl_comm::mav_ctrl msg;
+
+	if  (((rcdata->channel[4]) > 1800 ) & ((rcdata->channel[4]) < 2500))
+	{
+		 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+		 msg.x = rcdata->channel[0]*k_stick_/1000.0*M_PI/180.0;
+		 msg.y = rcdata->channel[1]*k_stick_/1000.0*M_PI/180.0;
+		 msg.yaw = rcdata->channel[3]*k_stick_yaw_/1000.0*M_PI/180.0;
+
+		 msg.z = rcdata->channel[2]/4096.0;
+	}
+
+	if ((rcdata->channel[4]) < 1800 )
+	{
+		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+
+
+//		  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x / config_.max_velocity_xy * 2047.0));
+//		  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y / config_.max_velocity_xy * 2047.0));
+//		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
+//		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
+
+		msg.x = rcdata->channel[0]/2047.0*1;
+		msg.y = rcdata->channel[1]/2047.0*1;
+		msg.yaw = rcdata->channel[3]/2047.0*1;
+		msg.z = (rcdata->channel[2]-2047.0)/2047.0*1;
+
+	}
+	if ((rcdata->channel[4]) > 4000 )
+	{
+		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+
+
+	}
+
+
+    llcmd_pub_vel.publish(msg);
 
 }
 
