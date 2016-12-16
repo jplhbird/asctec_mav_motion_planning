@@ -182,9 +182,17 @@ void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
 
 void TeleopIMU::send_ctrl(void){
 	asctec_hl_comm::mav_ctrl msg;
+
+	//the command is in real angle and real angular velocity
+	//roll and pitch angle cmd  =real_angle*1000/K_stick
+
+	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
+
+
     msg.x = 1000;
     msg.y = 1000;
     msg.z = 0.5;
+
     msg.yaw = 1000* M_PI / 180.0;
     msg.v_max_xy = -4000; // use max velocity from config
     msg.v_max_z = 4000;
