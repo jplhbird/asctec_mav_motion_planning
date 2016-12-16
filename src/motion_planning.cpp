@@ -34,7 +34,17 @@
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/TwistStamped.h"
 
+
+
+// message includes
+#include <asctec_hl_comm/mav_rcdata.h>
 #include <asctec_hl_comm/mav_ctrl.h>
+#include <asctec_hl_comm/mav_imu.h>
+#include <asctec_hl_comm/mav_status.h>
+#include <asctec_hl_comm/GpsCustom.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/Vector3Stamped.h>
 
 
 
@@ -51,6 +61,8 @@ public:
 private:
     void callBack(const sensor_msgs::Imu::ConstPtr& imu);
 
+    void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
+
     //send command in acc mode
     void send_acc_ctrl(void);
 
@@ -63,7 +75,12 @@ private:
 
     ros::Publisher pub3;
 
-    ros::Publisher llcmd_pub;
+    ros::Publisher llcmd_pub_acc;
+
+    ros::Publisher llcmd_pub_vel;
+
+
+    ros::Subscriber rcdata_sub_;
 
     ros::Subscriber sub;
 
@@ -76,21 +93,37 @@ TeleopIMU::TeleopIMU()
     pub=n.advertise<geometry_msgs::Twist>("turtle1/cmd_vel",1);
 
 
-   llcmd_pub = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_inteface
+    llcmd_pub_acc = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_inteface
    // llcmb_pubrate.Rate(20);//20HZ
+
+    llcmd_pub_vel = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
+
+
 
     pub2=n.advertise<geometry_msgs::PoseStamped>("command/pose",1); //command to quadrotor
 
     pub3 = n.advertise<geometry_msgs::TwistStamped>("command/twist",1); //velocity command to quadrotor
 
-    sub=n.subscribe<sensor_msgs::Imu>("/imu/data",10,&TeleopIMU::callBack,this);
+	sub=n.subscribe<sensor_msgs::Imu>("/imu/data",10,&TeleopIMU::callBack,this);
     //should run rosrun xsens_driver mtnode.py in order to run the xsens_driver node,
-    //this nod will advertise /imu/data
+    //this node will advertise /imu/data
     //topic
+
+
+	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 
 
     send_acc_ctrl();
 }
+
+
+
+void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata){
+
+
+}
+
+
 
 void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
 {
@@ -233,12 +266,23 @@ void TeleopIMU::send_acc_ctrl(void){
 //    }
 
     while (ros::ok()){
-    	llcmd_pub.publish(msg);
+    	llcmd_pub_acc.publish(msg);
     	//ROS_INFO(msg);
     	ros::spinOnce();
     //	llcmb_pubrate.sleep();
     	  // %EndTag(RATE_SLEEP)%
     }
+}
+
+
+void TeleopIMU::send_velo_control(void){
+
+	//send velocity command
+
+
+
+
+
 }
 
 
