@@ -50,7 +50,12 @@ public:
     TeleopIMU();
 private:
     void callBack(const sensor_msgs::Imu::ConstPtr& imu);
-    void send_ctrl(void);
+
+    //send command in acc mode
+    void send_acc_ctrl(void);
+
+    //send command in velocity mode:
+    void send_velo_control(void);
 
     ros::NodeHandle n;
     ros::Publisher pub;
@@ -84,7 +89,7 @@ TeleopIMU::TeleopIMU()
     //topic
 
 
-   send_ctrl();
+    send_acc_ctrl();
 }
 
 void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
@@ -180,7 +185,11 @@ void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
 
 }
 
-void TeleopIMU::send_ctrl(void){
+void TeleopIMU::send_acc_ctrl(void){
+
+	//send the command in acc mode
+
+
 	asctec_hl_comm::mav_ctrl msg;
 
 	//the command is in real angle and real angular velocity
