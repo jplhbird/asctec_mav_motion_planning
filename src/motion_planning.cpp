@@ -154,7 +154,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	asctec_hl_comm::mav_ctrl msg;
 
-	if  (((rcdata->channel[4]) > 1800 ) & ((rcdata->channel[4]) < 2500))
+	if  ((rcdata->channel[4]) < 1800 )
 	{
 		 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
@@ -165,7 +165,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		 msg.z = rcdata->channel[2]/4096.0;
 	}
 
-	if ((rcdata->channel[4]) < 1800 )
+	if (((rcdata->channel[4]) > 1800 ) & ((rcdata->channel[4]) < 2500))
 	{
 		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
 
