@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2008, Morgan Quigley and Willow Garage, Inc.
  *
@@ -191,7 +192,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	ROS_INFO("channel 0: %ld", (int)(rcdata->channel[0]));
 
 
-	ROS_ERROR_STREAM("channel 0: %ld"<<(rcdata->channel[0]));
+	ROS_ERROR_STREAM("channel 0: "<<(rcdata->channel[0]));
 	ROS_INFO("channel 0: %ld", (int)(rcdata->channel[0]));
 
 	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
@@ -386,4 +387,6 @@ int main(int argc, char **argv)
     ros::spin();
 }
 // %EndTag(FULLTEXT)%
+
+
 
