@@ -194,6 +194,14 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	ROS_ERROR_STREAM("channel 0: %ld"<<(rcdata->channel[0]));
 	ROS_INFO("channel 0: %ld", (int)(rcdata->channel[0]));
 
+	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
+	ROS_INFO_STREAM("channel 1: "<<(rcdata->channel[1]));
+	ROS_INFO_STREAM("channel 2: "<<(rcdata->channel[2]));
+	ROS_INFO_STREAM("channel 3: "<<(rcdata->channel[3]));
+	ROS_INFO_STREAM("channel 4: "<<(rcdata->channel[4]));
+	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
+	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
+
 	ROS_INFO("channel 1: %ld", (int)(rcdata->channel[1]));
 	ROS_INFO("channel 2: %ld", (int)(rcdata->channel[2]));
 	ROS_INFO("channel 3: %ld", (int)(rcdata->channel[3]));
