@@ -154,18 +154,32 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	asctec_hl_comm::mav_ctrl msg;
 
-	if  ((rcdata->channel[4]) < 1800 )
+	if  ((rcdata->channel[5]) < 1800 )
 	{
 		 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
-		 msg.x = rcdata->channel[0]*k_stick_/1000.0*M_PI/180.0;
-		 msg.y = rcdata->channel[1]*k_stick_/1000.0*M_PI/180.0;
-		 msg.yaw = rcdata->channel[3]*k_stick_yaw_/1000.0*M_PI/180.0;
+		 //note the rcdata is not the same with the command sent to LL from HL
+
+		 msg.x =  (rcdata->channel[0]-2047) *k_stick_/1000.0*M_PI/180.0;
+		 msg.y =  (-rcdata->channel[1] + 2047) *k_stick_/1000.0*M_PI/180.0;   //opposite direction
+		 msg.yaw = (-rcdata->channel[3] + 2047) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
 
 		 msg.z = rcdata->channel[2]/4096.0;
+
+
+		 //test only:
+
+//		 msg.x = 0;
+//		 msg.y = 0;
+//		 msg.yaw = 0;
+//
+//		 msg.z = 0;
+
+
+
 	}
 
-	if (((rcdata->channel[4]) > 1800 ) & ((rcdata->channel[4]) < 2500))
+	if (((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
 	{
 		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
 
@@ -181,19 +195,16 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		msg.z = (rcdata->channel[2]-2047.0)/2047.0*1;
 
 	}
-	if ((rcdata->channel[4]) > 4000 )
-	{
-		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+//	if ((rcdata->channel[5]) > 4000 )
+//	{
+//		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+//
+//	}
 
 
-	}
+	ROS_INFO_STREAM("k_stick: "<< k_stick_);
 
-
-	ROS_INFO("channel 0: %ld", (int)(rcdata->channel[0]));
-
-
-	ROS_ERROR_STREAM("channel 0: "<<(rcdata->channel[0]));
-	ROS_INFO("channel 0: %ld", (int)(rcdata->channel[0]));
+	ROS_INFO_STREAM("k_stick_yaw: "<< k_stick_yaw_);
 
 	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
 	ROS_INFO_STREAM("channel 1: "<<(rcdata->channel[1]));
@@ -203,14 +214,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
 	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
 
-	ROS_INFO("channel 1: %ld", (int)(rcdata->channel[1]));
-	ROS_INFO("channel 2: %ld", (int)(rcdata->channel[2]));
-	ROS_INFO("channel 3: %ld", (int)(rcdata->channel[3]));
-	ROS_INFO("channel 4: %ld", (int)(rcdata->channel[4]));
-	ROS_INFO("channel 5: %ld", (int)(rcdata->channel[5]));
-	ROS_INFO("channel 6: %ld", (int)(rcdata->channel[6]));
-	ROS_INFO("channel 7: %ld", (int)(rcdata->channel[7]));
-
+	ROS_INFO_STREAM("cmd from HL to LL, x: "<<msg.x);
+	ROS_INFO_STREAM("cmd from HL to LL, y: "<<msg.y);
+	ROS_INFO_STREAM("cmd from HL to LL, yaw: "<<msg.yaw);
 
     llcmd_pub_vel.publish(msg);
 
