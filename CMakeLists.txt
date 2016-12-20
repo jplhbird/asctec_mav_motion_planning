@@ -9,10 +9,13 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   asctec_hl_comm
+  dynamic_reconfigure
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -128,6 +131,10 @@ include_directories(
 ## either from message generation or dynamic reconfigure
 # add_dependencies(test_MTI_G2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+
+# make sure configure headers are built before any node using them
+add_dependencies(motion_mav ${PROJECT_NAME}_gencfg)
+
 ## Declare a C++ executable
 # add_executable(test_MTI_G2_node src/test_MTI_G2_node.cpp)
 
@@ -194,6 +201,8 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 add_executable(motion_mav src/motion_planning.cpp)
 target_link_libraries(motion_mav ${catkin_LIBRARIES})
 add_dependencies(motion_mav asctec_mav_motion_planning_generate_messages_cpp)
+
+
 
 
 
