@@ -48,12 +48,18 @@
 #include <geometry_msgs/Vector3Stamped.h>
 
 
+// dynamic reconfigure includes
+#include <dynamic_reconfigure/server.h>
+#include <asctec_mav_motion_planning/motion_planning_paraConfig.h>
+
+
 
 /**
  * This tutorial demonstrates simple usage of mit-g-710, using it to command the turtle in the ROS package
  */
 
 
+typedef dynamic_reconfigure::Server<asctec_mav_motion_planning::motion_planning_paraConfig> ReconfigureServer;
 
 using namespace std;
 class TeleopIMU{
@@ -104,6 +110,13 @@ private:
 
    // ros::Rate llcmb_pubrate;
 
+    // dynamic reconfigure
+    ReconfigureServer *motionconf_srv_;
+    void cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraConfig & config, uint32_t level);
+    //asctec_hl_interface::HLInterfaceConfig config_;
+
+
+
 };
 
 TeleopIMU::TeleopIMU():
@@ -136,8 +149,17 @@ pnh_("~/fcu")
 	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 
 
+	  // bring up dynamic reconfigure
+	motionconf_srv_ = new ReconfigureServer(pnh_);
+	ReconfigureServer::CallbackType f = boost::bind(&TeleopIMU::cbmotionConfig, this, _1, _2);
+	motionconf_srv_->setCallback(f);
+
+
    // send_acc_ctrl();
 }
+
+
+
 
 
 
@@ -380,9 +402,15 @@ void TeleopIMU::send_velo_control(void){
 
 
 
+}
 
+
+void TeleopIMU::cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraConfig & config, uint32_t level){
 
 }
+
+
+
 
 
 int main(int argc, char **argv)
