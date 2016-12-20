@@ -132,8 +132,7 @@ include_directories(
 # add_dependencies(test_MTI_G2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 
-# make sure configure headers are built before any node using them
-add_dependencies(motion_mav ${PROJECT_NAME}_gencfg)
+
 
 ## Declare a C++ executable
 # add_executable(test_MTI_G2_node src/test_MTI_G2_node.cpp)
@@ -203,6 +202,7 @@ target_link_libraries(motion_mav ${catkin_LIBRARIES})
 add_dependencies(motion_mav asctec_mav_motion_planning_generate_messages_cpp)
 
 
-
+# make sure configure headers are built before any node using them
+add_dependencies(motion_mav ${PROJECT_NAME}_gencfg)
 
 
