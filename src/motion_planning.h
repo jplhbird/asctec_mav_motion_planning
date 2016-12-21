@@ -8,20 +8,20 @@
 #ifndef ASCTEC_MAV_MOTION_PLANNING_SRC_MOTION_PLANNING_H_
 #define ASCTEC_MAV_MOTION_PLANNING_SRC_MOTION_PLANNING_H_
 
-
+//other header files
 #include "minimun_snap_traj.h"
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
-#include "sensor_msgs/Imu.h"
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/TwistStamped.h"
-
+//#include "sensor_msgs/Imu.h"
 
 
 // message includes
+#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+
 #include <asctec_hl_comm/mav_rcdata.h>
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>

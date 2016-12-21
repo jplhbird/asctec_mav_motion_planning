@@ -13,10 +13,6 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 
-#include "sensor_msgs/Imu.h"
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/TwistStamped.h"
 
 // message includes
 #include <asctec_hl_comm/mav_rcdata.h>
@@ -27,6 +23,7 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include <nav_msgs/Path.h>
 
 
 // dynamic reconfigure includes
@@ -47,7 +44,7 @@ private:
 
     void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
 
-  //  void cmdCallback(const nav_msgs::PathConstPtr& positioncmd);
+	void cmdCallback(const nav_msgs::Path::ConstPtr& positioncmd);
 
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
@@ -57,6 +54,16 @@ private:
     ros::Publisher control_pub;  //publish the calculated minimum trajectory
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
+
+
+    struct
+    {
+    	int calcmd;
+    	float omega[3];
+    	float vel[3];
+    	float pos[3];
+    }flag;  //the flag used to determine which function is to run
+
 
 };
 

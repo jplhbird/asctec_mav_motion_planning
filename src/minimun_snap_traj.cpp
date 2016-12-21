@@ -25,8 +25,11 @@ Minimumsnap::Minimumsnap(ros::NodeHandle & nh):
 	pose_sub_ = nh_minsnap.subscribe("pose", 1, &Minimumsnap::poseCallback, this);
 
 	//the topic name is still under discussion:
-	//cmd_sub_ = nh_minsnap.subscribe("positioncmd", 1, &Minimumsnap::cmdCallback, this);
+	cmd_sub_ = nh_minsnap.subscribe<nav_msgs::Path>("positioncmd", 1, &Minimumsnap::cmdCallback, this);
 
+
+	//init the flag values
+	flag.calcmd=0;
 
 
 }
@@ -77,13 +80,20 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
+
+
+
+
 }
 
 
 
-//void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
-//
-//}
+void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
+
+	flag.calcmd=1;
+
+
+}
 
 
 
