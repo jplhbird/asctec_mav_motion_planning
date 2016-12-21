@@ -39,24 +39,24 @@
 class Minimumsnap{
 public:
 	Minimumsnap(ros::NodeHandle & nh);
-	//~Minimumsnap();
+	~Minimumsnap();
 
 private:
 
-//	ros::NodeHandle nh_minsnap;
-//
-//    void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
-//
-//  //  void cmdCallback(const nav_msgs::PathConstPtr& positioncmd);
-//
-//    //the function used to calculate the minimum trajectory from start point to end point:
-//    float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
-//
-//
-//    ros::Publisher taj_pub;  //publish the calculated minimum trajectory
-//    ros::Publisher control_pub;  //publish the calculated minimum trajectory
-//    ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
-//    ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
+	ros::NodeHandle nh_minsnap;
+
+    void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
+
+  //  void cmdCallback(const nav_msgs::PathConstPtr& positioncmd);
+
+    //the function used to calculate the minimum trajectory from start point to end point:
+    float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
+
+
+    ros::Publisher taj_pub;  //publish the calculated minimum trajectory
+    ros::Publisher control_pub;  //publish the calculated minimum trajectory
+    ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
+    ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
 
 };
 

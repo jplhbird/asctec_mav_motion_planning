@@ -309,9 +309,9 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("motion_mav");
 
 
-    TeleopIMU teleop_turtle;
+    TeleopIMU teopuav;
 
-    Minimumsnap test(nh);
+    Minimumsnap minimumfun(nh);
 
     ros::spin();
 

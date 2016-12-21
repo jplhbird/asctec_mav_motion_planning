@@ -7,40 +7,36 @@
  */
 
 
-#include "mimimun_snap_traj.h"
+#include "minimun_snap_traj.h"
 
 
-Minimumsnap::Minimumsnap(ros::NodeHandle & nh)
+
+
+Minimumsnap::Minimumsnap(ros::NodeHandle & nh):
+		nh_minsnap(nh)
+
+{
+
+	taj_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
+
+	control_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
+
+	//the topic name is still under discussion:
+	pose_sub_ = nh_minsnap.subscribe("pose", 1, &Minimumsnap::poseCallback, this);
+
+	//the topic name is still under discussion:
+	//cmd_sub_ = nh_minsnap.subscribe("positioncmd", 1, &Minimumsnap::cmdCallback, this);
+
+
+
+}
+
+Minimumsnap::~Minimumsnap()
 {
 
 }
 
-/*
-Minimumsnap::Minimumsnap(ros::NodeHandle & nh)
-		//nh_minsnap(nh)
 
-{
-//
-//	taj_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
-//
-//	control_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
-//
-//	//the topic name is still under discussion:
-//	pose_sub_ = nh_minsnap.subscribe("pose", 1, &Minimumsnap::poseCallback, this);
-
-	//the topic name is still under discussion:
-//	cmd_sub_ = nh_minsnap.subscribe("positioncmd", 1, &Minimumsnap::cmdCallback, this);
-
-
-
-}  */
-
-//Minimumsnap::~Minimumsnap()
-//{
-//
-//}
-
-/*
 
 //trajectory planning of a strait line from start point to end point, munimum snap trajectory
 float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
@@ -83,7 +79,7 @@ void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
 }
 
-*/
+
 
 //void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 //
