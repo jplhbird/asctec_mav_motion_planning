@@ -1,6 +1,6 @@
 
 /*
- * Copyright (C) 2008, Morgan Quigley and Willow Garage, Inc.
+ * Copyright (C) 2016, Morgan Quigley and Willow Garage, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,99 +25,100 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include "motion_planning.h"
+//
+//#include "ros/ros.h"
+//#include "std_msgs/String.h"
 
-
-#include "ros/ros.h"
-#include "std_msgs/String.h"
-
-#include "sensor_msgs/Imu.h"
-#include "geometry_msgs/Twist.h"
-#include "geometry_msgs/PoseStamped.h"
-#include "geometry_msgs/TwistStamped.h"
-
-
-
-// message includes
-#include <asctec_hl_comm/mav_rcdata.h>
-#include <asctec_hl_comm/mav_ctrl.h>
-#include <asctec_hl_comm/mav_imu.h>
-#include <asctec_hl_comm/mav_status.h>
-#include <asctec_hl_comm/GpsCustom.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/NavSatFix.h>
-#include <geometry_msgs/Vector3Stamped.h>
-
-
-// dynamic reconfigure includes
-#include <dynamic_reconfigure/server.h>
-#include <asctec_mav_motion_planning/motion_planning_paraConfig.h>
-
-
-
-/**
- * This tutorial demonstrates simple usage of mit-g-710, using it to command the turtle in the ROS package
- */
-
-
-typedef dynamic_reconfigure::Server<asctec_mav_motion_planning::motion_planning_paraConfig> ReconfigureServer;
-
-using namespace std;
-class TeleopIMU{
-public:
-    TeleopIMU();
-private:
-    void callBack(const sensor_msgs::Imu::ConstPtr& imu);
-
-    void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
-
-    //send command in acc mode
-    void send_acc_ctrl(void);
-
-    //send command in velocity mode:
-    void send_velo_control(void);
-
-    ros::NodeHandle n;
-    ros::NodeHandle pnh_;
-
-    ros::Publisher pub;
-    ros::Publisher pub2;
-
-    ros::Publisher pub3;
-
-    ros::Publisher llcmd_pub_acc;
-
-    ros::Publisher llcmd_pub_vel;
-
-
-    ros::Subscriber rcdata_sub_;
-
-    ros::Subscriber sub;
-
-    /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"
-    /**
-     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
-     * It is only relevant, when this interface is used to send roll/pitch (or x/y velocity when in GPS mode) commands to the LLP.
-     */
-    int k_stick_;
-
-    /// gain from AutoPilot values to 1/1000 degree for the input from the yaw "stick"
-    /**
-     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
-     * It is only relevant, when this interface is used to send yaw commands to the LLP.
-     */
-    int k_stick_yaw_;
-
-
-   // ros::Rate llcmb_pubrate;
-
-    // dynamic reconfigure
-    ReconfigureServer *motionconf_srv_;
-    void cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraConfig & config, uint32_t level);
-    //asctec_hl_interface::HLInterfaceConfig config_;
-
-
-
-};
+//#include "sensor_msgs/Imu.h"
+//#include "geometry_msgs/Twist.h"
+//#include "geometry_msgs/PoseStamped.h"
+//#include "geometry_msgs/TwistStamped.h"
+//
+//
+//
+//// message includes
+//#include <asctec_hl_comm/mav_rcdata.h>
+//#include <asctec_hl_comm/mav_ctrl.h>
+//#include <asctec_hl_comm/mav_imu.h>
+//#include <asctec_hl_comm/mav_status.h>
+//#include <asctec_hl_comm/GpsCustom.h>
+//#include <sensor_msgs/Imu.h>
+//#include <sensor_msgs/NavSatFix.h>
+//#include <geometry_msgs/Vector3Stamped.h>
+//
+//
+//// dynamic reconfigure includes
+//#include <dynamic_reconfigure/server.h>
+//#include <asctec_mav_motion_planning/motion_planning_paraConfig.h>
+//
+//
+//
+///**
+// * This tutorial demonstrates simple usage of mit-g-710, using it to command the turtle in the ROS package
+// */
+//
+//
+//typedef dynamic_reconfigure::Server<asctec_mav_motion_planning::motion_planning_paraConfig> ReconfigureServer;
+//
+//using namespace std;
+//class TeleopIMU{
+//public:
+//    TeleopIMU();
+//private:
+//    void callBack(const sensor_msgs::Imu::ConstPtr& imu);
+//
+//    void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
+//
+//    //send command in acc mode
+//    void send_acc_ctrl(void);
+//
+//    //send command in velocity mode:
+//    void send_velo_control(void);
+//
+//    ros::NodeHandle n;
+//    ros::NodeHandle pnh_;
+//
+//    ros::Publisher pub;
+//    ros::Publisher pub2;
+//
+//    ros::Publisher pub3;
+//
+//    ros::Publisher llcmd_pub_acc;
+//
+//    ros::Publisher llcmd_pub_vel;
+//
+//
+//    ros::Subscriber rcdata_sub_;
+//
+//    ros::Subscriber sub;
+//
+//    /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"
+//    /**
+//     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
+//     * It is only relevant, when this interface is used to send roll/pitch (or x/y velocity when in GPS mode) commands to the LLP.
+//     */
+//    int k_stick_;
+//
+//    /// gain from AutoPilot values to 1/1000 degree for the input from the yaw "stick"
+//    /**
+//     * This value should be equal to the one that can be found when reading the controller parameters of the LLP by the AscTec AutoPilot software.
+//     * It is only relevant, when this interface is used to send yaw commands to the LLP.
+//     */
+//    int k_stick_yaw_;
+//
+//
+//   // ros::Rate llcmb_pubrate;
+//
+//    // dynamic reconfigure
+//    ReconfigureServer *motionconf_srv_;
+//    void cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraConfig & config, uint32_t level);
+//
+//    asctec_mav_motion_planning::motion_planning_paraConfig config_motion;
+//
+//
+//
+//};
 
 TeleopIMU::TeleopIMU():
 pnh_("~/fcu")
@@ -188,17 +189,11 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 		 msg.z = rcdata->channel[2]/4096.0;
 
-
 		 //test only:
-
 //		 msg.x = 0;
 //		 msg.y = 0;
 //		 msg.yaw = 0;
-//
 //		 msg.z = 0;
-
-
-
 	}
 
 	if (((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
@@ -211,10 +206,10 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 //		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
 //		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
 
-		msg.x = rcdata->channel[0]/2047.0*1;
-		msg.y = rcdata->channel[1]/2047.0*1;
-		msg.yaw = rcdata->channel[3]/2047.0*1;
-		msg.z = (rcdata->channel[2]-2047.0)/2047.0*1;
+		msg.x = (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
+		msg.y = (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
+		msg.yaw = (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 	}
 //	if ((rcdata->channel[5]) > 4000 )
@@ -406,6 +401,12 @@ void TeleopIMU::send_velo_control(void){
 
 
 void TeleopIMU::cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraConfig & config, uint32_t level){
+
+	ROS_INFO_STREAM("max_velocity_xy: "<<config.max_velocity_xy);
+
+	config_motion = config;
+
+	ROS_INFO_STREAM("max_velocity_xy: "<<config_motion.max_velocity_xy);
 
 }
 

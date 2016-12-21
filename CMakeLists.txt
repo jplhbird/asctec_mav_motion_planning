@@ -106,7 +106,7 @@ generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES test_MTI_G2
-#  CATKIN_DEPENDS roscpp rospy std_msgs roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
+  CATKIN_DEPENDS roscpp rospy std_msgs roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
 #  DEPENDS system_lib
 )
 
