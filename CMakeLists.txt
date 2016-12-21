@@ -12,8 +12,19 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 
+find_package(cmake_modules REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+# Set the build type.  Options are:
+#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
+#  Debug          : w/ debug symbols, w/o optimization
+#  Release        : w/o debug symbols, w/ optimization
+#  RelWithDebInfo : w/ debug symbols, w/ optimization
+#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
+set(CMAKE_BUILD_TYPE Release)
+
 
 generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 
@@ -181,6 +192,9 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
+
+
+
 #############
 ## Testing ##
 #############
@@ -197,9 +211,17 @@ include_directories(
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_executable(motion_mav src/motion_planning.cpp)
+
+set(ASCTEC_MAV_MOTION_PLANNING_SRC
+    src/mimimun_snap_traj.cpp
+    )
+
+
+
+add_executable(motion_mav ${ASCTEC_MAV_MOTION_PLANNING_SRC} src/motion_planning.cpp)
 target_link_libraries(motion_mav ${catkin_LIBRARIES})
-add_dependencies(motion_mav asctec_mav_motion_planning_generate_messages_cpp)
+# add_dependencies(motion_mav asctec_mav_motion_planning_generate_messages_cpp)
+add_dependencies(motion_mav ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 
 # make sure configure headers are built before any node using them

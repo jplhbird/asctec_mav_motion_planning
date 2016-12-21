@@ -9,6 +9,7 @@
 #define ASCTEC_MAV_MOTION_PLANNING_SRC_MOTION_PLANNING_H_
 
 
+#include "mimimun_snap_traj.h"
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"
