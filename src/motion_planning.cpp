@@ -96,6 +96,8 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 
 	state_feedback.velocity.z=imudata->differential_height;
 
+	state_feedback.pose.orientation =imudata->orientation;
+
 }
 
 
