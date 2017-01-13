@@ -153,11 +153,10 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	}
 
 
-//	if ((rcdata->channel[5]) > 4000 )
-//	{
-//		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
-//
-//	}
+	if ((rcdata->channel[5]) > 4000 )
+	{
+		msg.type = asctec_hl_comm::mav_ctrl::position;
+	}
 
 
 	if ( ((rcdata_last.channel[5])<4000) & ((rcdata->channel[5])>4000))
