@@ -37,7 +37,14 @@ pnh_("~/fcu")
 
 	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 
+	gps_custom_sub_ =n.subscribe<asctec_hl_comm::GpsCustom> ("fcu/gps_custom", 1, &TeleopIMU::gpsdataCallback, this);
 
+	gps_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
+
+
+
+
+	//config_motion = asctec_mav_motion_planning::motion_planning_paraConfig::__getDefault__();
 	  // bring up dynamic reconfigure
 	motionconf_srv_ = new ReconfigureServer(pnh_);
 	ReconfigureServer::CallbackType f = boost::bind(&TeleopIMU::cbmotionConfig, this, _1, _2);
@@ -48,6 +55,57 @@ pnh_("~/fcu")
 }
 
 
+
+void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata){
+
+ //use the GPS data as the external position and velocity
+
+	//only used in test
+
+
+
+//	std_msgs/Header header
+//	geometry_msgs/Pose pose
+//	geometry_msgs/Vector3 velocity
+
+
+
+// gpsdata:
+
+
+
+	float lla[3]; //the latitude, longitude, and height.
+
+	lla[0]= gpsdata->latitude;
+	lla[1]= gpsdata->longitude;
+	lla[2]= gpsdata->altitude;
+
+
+
+
+
+	state_feedback.pose.position.x=gpsdata->velocity_x;
+
+	state_feedback.pose.position.y=gpsdata->velocity_y;
+
+
+}
+
+void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
+//use the GPS height as the external height and z-velocity
+	//only used in test
+
+
+
+
+
+	state_feedback.pose.position.z= imudata->height;
+	state_feedback.velocity.z=imudata->differential_height;
+
+
+
+
+}
 
 
 
@@ -100,6 +158,8 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 	}
+
+
 //	if ((rcdata->channel[5]) > 4000 )
 //	{
 //		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
@@ -125,7 +185,20 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
     llcmd_pub_vel.publish(msg);
 
+    rcdata_last = *rcdata; //record the rcdata of last time
+
+
+	ROS_INFO_STREAM("channel 0: "<<(rcdata_last.channel[0]));
+	ROS_INFO_STREAM("channel 1: "<<(rcdata_last.channel[1]));
+	ROS_INFO_STREAM("channel 2: "<<(rcdata_last.channel[2]));
+	ROS_INFO_STREAM("channel 3: "<<(rcdata_last.channel[3]));
+	ROS_INFO_STREAM("channel 4: "<<(rcdata_last.channel[4]));
+	ROS_INFO_STREAM("channel 5: "<<(rcdata_last.channel[5]));
+	ROS_INFO_STREAM("channel 6: "<<(rcdata_last.channel[6]));
+
 }
+
+
 
 
 
@@ -292,11 +365,59 @@ void TeleopIMU::cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraC
 
 	ROS_INFO_STREAM("max_velocity_xy: "<<config.max_velocity_xy);
 
+	//config = config_motion;
+
 	config_motion = config;
 
 	ROS_INFO_STREAM("max_velocity_xy: "<<config_motion.max_velocity_xy);
 
 }
+
+
+
+void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
+//calculate the three position coordinate in the
+//Locally North-East-Down tangent plane Euclidean linearized coordinate system
+//note the definition of the origin of the NED LLP frame
+{
+	double lla_mit_g[3];
+
+	double lla_mit_g_0[3];
+
+
+	float P_sen[3];  //the position in NED represent
+
+	double R_earth=6378140; // 6378140m, the long radius of the earth
+	double e_earth=0.0033539376905456;
+
+	double tempP[3];
+	double Rn, Re;  //Rn is the north direction curve radius, Re is the east direction curve radius
+	int i;
+
+	for(i=0;i<3;i++)
+	{
+		lla_mit_g[i]=LLA(i);
+
+		lla_mit_g_0[i]=LLA(i);
+
+
+	}
+
+
+	tempP[0]= 1- e_earth*e_earth * sin(lla_mit_g[0])* sin(lla_mit_g[0]);
+	Rn = R_earth*(1-e_earth*e_earth) / tempP[0]*sqrt(tempP[0]);
+	Re = R_earth  / sqrt(tempP[0]);
+	tempP[0]= Re*(lla_mit_g[0]-lla_mit_g_0[0]);
+	tempP[1]= Rn* cos(lla_mit_g[0]) * (lla_mit_g[1]-lla_mit_g_0[1]);
+	tempP[2]= -(lla_mit_g[2] -lla_mit_g_0[2]);
+	for(i=0; i<3; i++)
+	{
+		P_sen[i]= (float)tempP[i];
+	}
+}
+
+
+
 
 
 

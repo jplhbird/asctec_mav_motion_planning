@@ -31,11 +31,16 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
 
+#include <nav_msgs/Odometry.h>
+#include <sensor_fusion_comm/ExtState.h>
+
 
 // dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
 #include <asctec_mav_motion_planning/motion_planning_paraConfig.h>
 
+//matrix:
+#include <Eigen/Eigen>
 
 
 /**
@@ -54,11 +59,18 @@ private:
 
     void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
 
+    void gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr&   gpsdata);
+
+    void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
+
     //send command in acc mode
     void send_acc_ctrl(void);
 
     //send command in velocity mode:
     void send_velo_control(void);
+
+    //convert the position from LLA to NED coordinate
+    void LLP_Euclidean(Eigen::Vector3d & LLA);
 
     ros::NodeHandle n;
     ros::NodeHandle pnh_;
@@ -75,7 +87,19 @@ private:
 
     ros::Subscriber rcdata_sub_;
 
+    ros::Subscriber gps_custom_sub_;
+    ros::Subscriber imu_custom_sub_;
+
     ros::Subscriber sub;
+
+
+    sensor_fusion_comm::ExtState state_feedback;
+
+    Eigen::Vector3d LLA; //latitude, longitude, altitude, this order
+    Eigen::Vector3d LLA_0;  //latitude, longitude, altitude, this order, the original point
+
+    asctec_hl_comm::mav_rcdata rcdata_last; //record the rcdata last time
+
 
     /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"
     /**
