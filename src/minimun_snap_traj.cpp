@@ -58,7 +58,7 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 	tau_i=(time-t0)/alpha;
 
 	// non-dimensional state:
-	//9-order polinomials:
+	//9-order polynomials:
 	//coeffients, accend order: A= [0; 0; 0; 7 ;-0.005942;-20.96748 ;20.9286 ;-5.922 ;-0.0423 ;0.0091;];
 
 	//9-order pllinomials non-dimensional state:
@@ -79,6 +79,8 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 
 void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
+
+
 
 
 
