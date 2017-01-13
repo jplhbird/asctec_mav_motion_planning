@@ -164,10 +164,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	{
 		//initialize the original point, set the current position as the original point
 
-
 		LLA_0 = LLA;
-
-
 	}
 
 
@@ -199,7 +196,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	ROS_INFO_STREAM("channel 3 record: "<<(rcdata_last.channel[3]));
 	ROS_INFO_STREAM("channel 4 record: "<<(rcdata_last.channel[4]));
 	ROS_INFO_STREAM("channel 5 record: "<<(rcdata_last.channel[5]));
-	ROS_INFO_STREAM("channel 6 record: "<<(rcdata_last.channel[6]));
+	ROS_INFO_STREAM("channel 6 record: "<<(LLA_0));
 
 }
 
