@@ -84,6 +84,8 @@ private:
 
     ros::Publisher llcmd_pub_vel;
 
+    ros::Publisher ext_state;
+
 
     ros::Subscriber rcdata_sub_;
 

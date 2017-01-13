@@ -23,7 +23,7 @@ pnh_("~/fcu")
 
     llcmd_pub_vel = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
 
-
+    ext_state=n.advertise<sensor_fusion_comm::ExtState>("fcu/state", 1); //external state, to interface of asctec
 
     pub2=n.advertise<geometry_msgs::PoseStamped>("command/pose",1); //command to quadrotor
 
@@ -74,19 +74,16 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 
 
 
-	float lla[3]; //the latitude, longitude, and height.
-
-	lla[0]= gpsdata->latitude;
-	lla[1]= gpsdata->longitude;
-	lla[2]= gpsdata->altitude;
+	LLA[0]= gpsdata->latitude;
+	LLA[1]= gpsdata->longitude;
+	LLA[2]= gpsdata->altitude;
 
 
+	TeleopIMU::LLP_Euclidean(LLA);
 
 
-
-	state_feedback.pose.position.x=gpsdata->velocity_x;
-
-	state_feedback.pose.position.y=gpsdata->velocity_y;
+	state_feedback.velocity.x=gpsdata->velocity_x;
+	state_feedback.velocity.y=gpsdata->velocity_y;
 
 
 }
@@ -95,15 +92,9 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 //use the GPS height as the external height and z-velocity
 	//only used in test
 
-
-
-
-
 	state_feedback.pose.position.z= imudata->height;
+
 	state_feedback.velocity.z=imudata->differential_height;
-
-
-
 
 }
 
@@ -167,6 +158,17 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 //	}
 
 
+	if ( ((rcdata_last.channel[5])<4000) & ((rcdata->channel[5])>4000))
+	{
+		//initialize the original point, set the current position as the original point
+
+
+		LLA_0 = LLA;
+
+
+	}
+
+
 	ROS_INFO_STREAM("k_stick: "<< k_stick_);
 
 	ROS_INFO_STREAM("k_stick_yaw: "<< k_stick_yaw_);
@@ -184,6 +186,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	ROS_INFO_STREAM("cmd from HL to LL, yaw: "<<msg.yaw);
 
     llcmd_pub_vel.publish(msg);
+    ext_state.publish(state_feedback);
 
     rcdata_last = *rcdata; //record the rcdata of last time
 
@@ -398,7 +401,7 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 	{
 		lla_mit_g[i]=LLA(i);
 
-		lla_mit_g_0[i]=LLA(i);
+		lla_mit_g_0[i]=LLA_0(i);
 
 
 	}
@@ -414,6 +417,12 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 	{
 		P_sen[i]= (float)tempP[i];
 	}
+
+
+	state_feedback.pose.position.x = P_sen[0];
+	state_feedback.pose.position.y = P_sen[1];
+	state_feedback.pose.position.z = P_sen[2];
+
 }
 
 
