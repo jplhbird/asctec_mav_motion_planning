@@ -188,13 +188,13 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
     rcdata_last = *rcdata; //record the rcdata of last time
 
 
-	ROS_INFO_STREAM("channel 0: "<<(rcdata_last.channel[0]));
-	ROS_INFO_STREAM("channel 1: "<<(rcdata_last.channel[1]));
-	ROS_INFO_STREAM("channel 2: "<<(rcdata_last.channel[2]));
-	ROS_INFO_STREAM("channel 3: "<<(rcdata_last.channel[3]));
-	ROS_INFO_STREAM("channel 4: "<<(rcdata_last.channel[4]));
-	ROS_INFO_STREAM("channel 5: "<<(rcdata_last.channel[5]));
-	ROS_INFO_STREAM("channel 6: "<<(rcdata_last.channel[6]));
+	ROS_INFO_STREAM("channel 0 record: "<<(rcdata_last.channel[0]));
+	ROS_INFO_STREAM("channel 1 record: "<<(rcdata_last.channel[1]));
+	ROS_INFO_STREAM("channel 2 record: "<<(rcdata_last.channel[2]));
+	ROS_INFO_STREAM("channel 3 record: "<<(rcdata_last.channel[3]));
+	ROS_INFO_STREAM("channel 4 record: "<<(rcdata_last.channel[4]));
+	ROS_INFO_STREAM("channel 5 record: "<<(rcdata_last.channel[5]));
+	ROS_INFO_STREAM("channel 6 record: "<<(rcdata_last.channel[6]));
 
 }
 
