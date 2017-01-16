@@ -53,7 +53,7 @@ typedef dynamic_reconfigure::Server<asctec_mav_motion_planning::motion_planning_
 //using namespace std;
 class TeleopIMU{
 public:
-    TeleopIMU(ros::NodeHandle & nh);
+    TeleopIMU();
 private:
     void callBack(const sensor_msgs::Imu::ConstPtr& imu);
 

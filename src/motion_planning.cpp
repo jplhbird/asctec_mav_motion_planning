@@ -8,8 +8,8 @@
 
 
 
-TeleopIMU::TeleopIMU(ros::NodeHandle & nh):
-n(nh), pnh_("~/fcu")
+TeleopIMU::TeleopIMU():
+pnh_("~/fcu")
 {
 	pnh_.param("k_stick", k_stick_, 25);
 	pnh_.param("k_stick_yaw", k_stick_yaw_, 120);
@@ -437,12 +437,11 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("motion_mav");
 
 
-    TeleopIMU teopuav(nh);
+    TeleopIMU teopuav;
 
     Minimumsnap minimumfun(nh);
 
     ros::spin();
-
 
 }
 
