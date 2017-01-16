@@ -74,7 +74,7 @@ private:
 
 
 
-	//20151215 added for map cruise:
+	//2017 Jan. added for map cruise:
 	float points_mapcruise[3][20];
 	float velocity_mapcruise[20];
 	float yaw_mapcruise[20];
@@ -83,13 +83,13 @@ private:
 	double ll_mapcruise[3];
 	float point_current[3];
 	float P_ini_cruise[3];
-	int current_point=0;
+	int current_point;
 	int  i_jump_no;
-	float time_current[4]={0,0,0,0};
+	float time_current[4];
 	float yaw_6DOF_init;
 	void reset_yaw_control();
 	void rotate_yaw_mapcruise(int i);
-	unsigned int Pnomflag =1; //flag determing which trajectory is to be used
+	unsigned int Pnomflag; //flag determing which trajectory is to be used
 
 	float T_sampling;
 	float time_doby_last;

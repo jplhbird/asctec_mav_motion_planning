@@ -14,6 +14,7 @@
 
 Minimumsnap::Minimumsnap()
 {
+	int i;
 
 	taj_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
 
@@ -37,6 +38,13 @@ Minimumsnap::Minimumsnap()
 	//the initial time once the commanded position is received
 	begin_init.flag=0;
 
+	current_point=0;
+	Pnomflag =1;
+	for(i=0;i<4;i++)
+	{
+		time_current[i]=0;
+	}
+
 
 }
 
@@ -48,8 +56,6 @@ Minimumsnap::~Minimumsnap()
 
 void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata){
 	//serve as a trigger information, run the motion planning algorithm in this frequency
-
-
 	//record the current time:
 
 	int64_t ts_usec;
@@ -77,193 +83,98 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 
  	ROS_INFO_STREAM("current time (ts_sec)"<<(time_body));
-
  	ROS_INFO_STREAM("current time (ts_usec)"<<(ts_usec));
 
-//map cruise trajectory, the trajectory follows minimun snap
- 				//use the following function:
- 				//trajectory planning of a strait line from start point to end point, munimum snap trajectory
- 				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
-// 				{
-// 					//record the yaw angle at the beginning of each line:
-// 					if (begin_init.i_jump_no==20)
-// 					{
-// 						reset_yaw_control();
-// 						//time need to rotate:
-// 						begin_init.timearray__mapcruise[2*begin_init.current_point]= time_body+ abs(yaw_mapcruise[begin_init.current_point]-yaw_6DOF_init)/0.1745f;
-//
-// 						time_current[0]=time_body+ abs(yaw_mapcruise[begin_init.current_point]-yaw_6DOF_init)/0.1745f;
-// 						i_jump_no=30;
-// 					}
-//
-//
-// 					if ((time_body<=time_current[0]) && (begin_init.i_jump_no==30))
-// 					{
-// 						//rotate the yaw angle to the set angle:
-// 						rotate_yaw_mapcruise(current_point);
-//
-// 						//i_jump_no=40;
-//
-// 					}
-//
-// 					if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
-// 					{
-// 											//time need to line:
-// 						begin_init.timearray__mapcruise[2*current_point+1]= time_body+
-// 						sqrt(
-// 						(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])*(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])+
-// 						(P_ini_cruise[1]-points_mapcruise[1][begin_init.current_point])*(P_ini_cruise[1]- points_mapcruise[1][begin_init.current_point])+
-// 						(P_ini_cruise[2]-points_mapcruise[2][begin_init.current_point])*(P_ini_cruise[2]- points_mapcruise[2][begin_init.current_point])
-// 						)/velocity_mapcruise[current_point];
-//
-// 						time_current[2]= time_body+
-// 						sqrt(
-// 						(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])*(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])+
-// 						(P_ini_cruise[1]-points_mapcruise[1][begin_init.current_point])*(P_ini_cruise[1]- points_mapcruise[1][begin_init.current_point])+
-// 						(P_ini_cruise[2]-points_mapcruise[2][begin_init.current_point])*(P_ini_cruise[2]- points_mapcruise[2][begin_init.current_point])
-// 						)/velocity_mapcruise[current_point];
-//
-// 						time_body=time_body+T_sampling;
-//
-// 						i_jump_no=50;
-//
-// 					}
-//
-//
-//
-// 					//line:
-// 					if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (begin_init.i_jump_no==50))
-// 					{
-// 						int j;
-// 						//minimum snap trajectory:
-// 						for(j=0;j<3;j++)
-// 						{
-// 							//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
-// 							P_nom[j]= minimumsnap_line(timearray__mapcruise[2*begin_init.current_point]+2,
-// 							timearray__mapcruise[2*begin_init.current_point+1]-timearray__mapcruise[2*begin_init.current_point]-2,
-// 							P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
-// 						}
-// 						time_body =time_body+T_sampling;
-// 						//i_jump_no=100;
-// 					}
-//
-// 					if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (begin_init.i_jump_no==50))
-// 					{
-// 						//hold on:
-// 						if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
-// 						{
-// 							//next line:
-// 							current_point++;
-//
-// 							i_jump_no=20;
-//
-// 							time_current[0]=0;
-// 							time_current[2]=0;
-// 							time_current[1]=0;
-// 						}
-//
-// 						if(current_point>=i_mapcruise)
-// 						{
-// 							//finish cruise:
-// 							Pnomflag =1;
-// 						}
-//
-// 						time_body =time_body+T_sampling;
-// 					}
-//
-// 				}
+	//map cruise trajectory, the trajectory follows minimun snap
+	//use the following function:
+	//trajectory planning of a strait line from start point to end point, munimum snap trajectory
+	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+	{
+		//record the yaw angle at the beginning of each line:
+		if (i_jump_no==20)
+		{
+			reset_yaw_control();
+			//time need to rotate:
+			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+
+			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+			i_jump_no=30;
+		}
 
 
- 				//map cruise trajectory, the trajectory follows minimun snap
- 				//use the following function:
- 				//trajectory planning of a strait line from start point to end point, munimum snap trajectory
- 				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
- 				{
- 					//record the yaw angle at the beginning of each line:
- 					if (i_jump_no==20)
- 					{
- 						reset_yaw_control();
- 						//time need to rotate:
- 						timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+		if ((time_body<=time_current[0]) && (i_jump_no==30))
+		{
+			//rotate the yaw angle to the set angle:
+			rotate_yaw_mapcruise(current_point);
+			//i_jump_no=40;
+		}
 
- 						time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
- 						i_jump_no=30;
- 					}
+		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
+		{
+								//time need to line:
+			timearray__mapcruise[2*current_point+1]= time_body+
+			sqrt(
+			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+			)/velocity_mapcruise[current_point];
 
+			time_current[2]= time_body+
+			sqrt(
+			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+			)/velocity_mapcruise[current_point];
 
- 					if ((time_body<=time_current[0]) && (i_jump_no==30))
- 					{
- 						//rotate the yaw angle to the set angle:
- 						rotate_yaw_mapcruise(current_point);
- 						//i_jump_no=40;
- 					}
+			//time_body=time_body+T_sampling;
 
- 					if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
- 					{
- 											//time need to line:
- 						timearray__mapcruise[2*current_point+1]= time_body+
- 						sqrt(
- 						(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
- 						(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
- 						(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
- 						)/velocity_mapcruise[current_point];
+			i_jump_no=50;
 
- 						time_current[2]= time_body+
- 						sqrt(
- 						(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
- 						(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
- 						(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
- 						)/velocity_mapcruise[current_point];
-
- 						//time_body=time_body+T_sampling;
-
- 						i_jump_no=50;
-
- 					}
+		}
 
 
 
- 					//line:
- 					if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (i_jump_no==50))
- 					{
- 						int j;
- 						//minimum snap trajectory:
- 						for(j=0;j<3;j++)
- 						{
- 							//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
- 							P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
- 							timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
- 							P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
- 						}
- 						//time_body =time_body+T_sampling;
- 						//i_jump_no=100;
- 					}
+		//line:
+		if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (i_jump_no==50))
+		{
+			int j;
+			//minimum snap trajectory:
+			for(j=0;j<3;j++)
+			{
+				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+				P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
+				timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
+				P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
+			}
+			//time_body =time_body+T_sampling;
+			//i_jump_no=100;
+		}
 
- 					if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (i_jump_no==50))
- 					{
- 						//hold on:
- 						if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
- 						{
- 							//next line:
- 							current_point++;
+		if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (i_jump_no==50))
+		{
+			//hold on:
+			if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
+			{
+				//next line:
+				current_point++;
 
- 							i_jump_no=20;
+				i_jump_no=20;
 
- 							time_current[0]=0;
- 							time_current[2]=0;
- 							time_current[1]=0;
- 						}
+				time_current[0]=0;
+				time_current[2]=0;
+				time_current[1]=0;
+			}
 
- 						if(current_point>=i_mapcruise)
- 						{
- 							//finish cruise:
- 							Pnomflag =1;
- 						}
+			if(current_point>=i_mapcruise)
+			{
+				//finish cruise:
+				Pnomflag =1;
+			}
 
- 						//time_body =time_body+T_sampling;
- 					}
+			//time_body =time_body+T_sampling;
+		}
 
- 				}
+	}
 
 }
 
