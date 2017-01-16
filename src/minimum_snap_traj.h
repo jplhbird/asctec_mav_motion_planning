@@ -59,6 +59,14 @@ private:
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
 
 
+
+    struct
+	{
+    	int flag;
+    	int64_t time;
+
+	}begin_init;
+
     struct
     {
     	int calcmd;

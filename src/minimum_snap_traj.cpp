@@ -34,6 +34,10 @@ Minimumsnap::Minimumsnap()
 	flag.calcmd=0;
 
 
+	//the initial time once the commanded position is received
+	begin_init.flag=0;
+
+
 }
 
 Minimumsnap::~Minimumsnap()
@@ -52,9 +56,18 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	float ts_sec;
 
 
+	if (begin_init.flag==0)
+	{
+		begin_init.time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
+		begin_init.flag=1;
+
+	}
+
+
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 
-	ts_sec =((float)ts_usec)/1.0e6;
+	ts_sec =((float)(ts_usec-begin_init.time))/1.0e6;
 
  	ROS_INFO_STREAM("current time (ts_sec)"<<(ts_sec));
 
@@ -118,6 +131,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 
 	flag.calcmd=1;
 
+	begin_init.flag=0;
 
 
 }
