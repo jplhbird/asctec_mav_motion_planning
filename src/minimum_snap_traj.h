@@ -46,12 +46,15 @@ private:
 
 	void cmdCallback(const nav_msgs::Path::ConstPtr& positioncmd);
 
+	void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
+
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
 
 
     ros::Publisher taj_pub;  //publish the calculated minimum trajectory
     ros::Publisher control_pub;  //publish the calculated minimum trajectory
+    ros::Subscriber rcdata_sub_; //subscribe the rcdata from /fcu
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
 

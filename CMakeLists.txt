@@ -216,7 +216,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 
 set(ASCTEC_MAV_MOTION_PLANNING_SRC
-    src/minimun_snap_traj.cpp
+    src/minimum_snap_traj.cpp
     )
 
 
