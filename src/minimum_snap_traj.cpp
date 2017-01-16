@@ -55,11 +55,12 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	int64_t ts_usec;
 	float ts_sec;
 
+	float time_body;
+
 
 	if (begin_init.flag==0)
 	{
 		begin_init.time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-
 		begin_init.flag=1;
 
 	}
@@ -67,12 +68,202 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 
-	ts_sec =((float)(ts_usec-begin_init.time))/1.0e6;
+	time_body =((float)(ts_usec-begin_init.time))/1.0e6;  //actual time used in calculation
 
- 	ROS_INFO_STREAM("current time (ts_sec)"<<(ts_sec));
+
+	T_sampling=time_body-time_doby_last;
+
+	time_doby_last=time_body;
+
+
+ 	ROS_INFO_STREAM("current time (ts_sec)"<<(time_body));
 
  	ROS_INFO_STREAM("current time (ts_usec)"<<(ts_usec));
 
+//map cruise trajectory, the trajectory follows minimun snap
+ 				//use the following function:
+ 				//trajectory planning of a strait line from start point to end point, munimum snap trajectory
+ 				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+// 				{
+// 					//record the yaw angle at the beginning of each line:
+// 					if (begin_init.i_jump_no==20)
+// 					{
+// 						reset_yaw_control();
+// 						//time need to rotate:
+// 						begin_init.timearray__mapcruise[2*begin_init.current_point]= time_body+ abs(yaw_mapcruise[begin_init.current_point]-yaw_6DOF_init)/0.1745f;
+//
+// 						time_current[0]=time_body+ abs(yaw_mapcruise[begin_init.current_point]-yaw_6DOF_init)/0.1745f;
+// 						i_jump_no=30;
+// 					}
+//
+//
+// 					if ((time_body<=time_current[0]) && (begin_init.i_jump_no==30))
+// 					{
+// 						//rotate the yaw angle to the set angle:
+// 						rotate_yaw_mapcruise(current_point);
+//
+// 						//i_jump_no=40;
+//
+// 					}
+//
+// 					if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
+// 					{
+// 											//time need to line:
+// 						begin_init.timearray__mapcruise[2*current_point+1]= time_body+
+// 						sqrt(
+// 						(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])*(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])+
+// 						(P_ini_cruise[1]-points_mapcruise[1][begin_init.current_point])*(P_ini_cruise[1]- points_mapcruise[1][begin_init.current_point])+
+// 						(P_ini_cruise[2]-points_mapcruise[2][begin_init.current_point])*(P_ini_cruise[2]- points_mapcruise[2][begin_init.current_point])
+// 						)/velocity_mapcruise[current_point];
+//
+// 						time_current[2]= time_body+
+// 						sqrt(
+// 						(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])*(P_ini_cruise[0]- points_mapcruise[0][begin_init.current_point])+
+// 						(P_ini_cruise[1]-points_mapcruise[1][begin_init.current_point])*(P_ini_cruise[1]- points_mapcruise[1][begin_init.current_point])+
+// 						(P_ini_cruise[2]-points_mapcruise[2][begin_init.current_point])*(P_ini_cruise[2]- points_mapcruise[2][begin_init.current_point])
+// 						)/velocity_mapcruise[current_point];
+//
+// 						time_body=time_body+T_sampling;
+//
+// 						i_jump_no=50;
+//
+// 					}
+//
+//
+//
+// 					//line:
+// 					if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (begin_init.i_jump_no==50))
+// 					{
+// 						int j;
+// 						//minimum snap trajectory:
+// 						for(j=0;j<3;j++)
+// 						{
+// 							//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+// 							P_nom[j]= minimumsnap_line(timearray__mapcruise[2*begin_init.current_point]+2,
+// 							timearray__mapcruise[2*begin_init.current_point+1]-timearray__mapcruise[2*begin_init.current_point]-2,
+// 							P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
+// 						}
+// 						time_body =time_body+T_sampling;
+// 						//i_jump_no=100;
+// 					}
+//
+// 					if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (begin_init.i_jump_no==50))
+// 					{
+// 						//hold on:
+// 						if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
+// 						{
+// 							//next line:
+// 							current_point++;
+//
+// 							i_jump_no=20;
+//
+// 							time_current[0]=0;
+// 							time_current[2]=0;
+// 							time_current[1]=0;
+// 						}
+//
+// 						if(current_point>=i_mapcruise)
+// 						{
+// 							//finish cruise:
+// 							Pnomflag =1;
+// 						}
+//
+// 						time_body =time_body+T_sampling;
+// 					}
+//
+// 				}
+
+
+ 				//map cruise trajectory, the trajectory follows minimun snap
+ 				//use the following function:
+ 				//trajectory planning of a strait line from start point to end point, munimum snap trajectory
+ 				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+ 				{
+ 					//record the yaw angle at the beginning of each line:
+ 					if (i_jump_no==20)
+ 					{
+ 						reset_yaw_control();
+ 						//time need to rotate:
+ 						timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+
+ 						time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+ 						i_jump_no=30;
+ 					}
+
+
+ 					if ((time_body<=time_current[0]) && (i_jump_no==30))
+ 					{
+ 						//rotate the yaw angle to the set angle:
+ 						rotate_yaw_mapcruise(current_point);
+ 						//i_jump_no=40;
+ 					}
+
+ 					if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
+ 					{
+ 											//time need to line:
+ 						timearray__mapcruise[2*current_point+1]= time_body+
+ 						sqrt(
+ 						(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+ 						(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+ 						(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+ 						)/velocity_mapcruise[current_point];
+
+ 						time_current[2]= time_body+
+ 						sqrt(
+ 						(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+ 						(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+ 						(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+ 						)/velocity_mapcruise[current_point];
+
+ 						//time_body=time_body+T_sampling;
+
+ 						i_jump_no=50;
+
+ 					}
+
+
+
+ 					//line:
+ 					if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (i_jump_no==50))
+ 					{
+ 						int j;
+ 						//minimum snap trajectory:
+ 						for(j=0;j<3;j++)
+ 						{
+ 							//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+ 							P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
+ 							timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
+ 							P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
+ 						}
+ 						//time_body =time_body+T_sampling;
+ 						//i_jump_no=100;
+ 					}
+
+ 					if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (i_jump_no==50))
+ 					{
+ 						//hold on:
+ 						if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
+ 						{
+ 							//next line:
+ 							current_point++;
+
+ 							i_jump_no=20;
+
+ 							time_current[0]=0;
+ 							time_current[2]=0;
+ 							time_current[1]=0;
+ 						}
+
+ 						if(current_point>=i_mapcruise)
+ 						{
+ 							//finish cruise:
+ 							Pnomflag =1;
+ 						}
+
+ 						//time_body =time_body+T_sampling;
+ 					}
+
+ 				}
 
 }
 
@@ -120,9 +311,6 @@ void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
 
 
-
-
-
 }
 
 
@@ -134,6 +322,58 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	begin_init.flag=0;
 
 
+}
+
+
+void Minimumsnap::rotate_yaw_mapcruise(int i)
+{
+	float timp_elapse;
+
+	//rotate the yaw angle to the set angle: yaw_mapcruise[i]
+
+	gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
+	*0.1745f* T_sampling;  //10deg/s ,
+	gamma_com[2] = gamma_nom[2];
+
+	//time_body =time_body+T_sampling;
+}
+
+
+void Minimumsnap::reset_yaw_control(void)
+{
+	//reset the yaw angle command to be equal to the current sensed yaw angle, in the range of [-pi,pi]
+	//notice all keep continous of the reset process
+	//notice that before the reset, the commanded yaw angle many not in the range of [-pi,pi]
+	//shoul keep stabel dring the reset process
+
+	{
+		yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+		gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+		gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+	}
+
+
+	P_ini_cruise[0]= P_sen[0];
+	P_ini_cruise[1]= P_sen[1];
+	P_ini_cruise[2]= P_sen[2];
+
+	//below, record the current tracking error in the control, in planning, it may not be used:
+/*
+  //commanded value, control value and sensed value initialization
+	{
+		gamma_err[2] = 0;
+		gamma_err_int[2] = 0;
+		gamma_ctrl[2]=0;
+	}
+
+  //the middel variables in the psedodifferentiator
+	{
+		gamma_nom_filter_m2[2]=0;
+		gamma_nom_filter_m1[2]=yaw_6DOF_init;
+	}
+
+	psi_nom=yaw_6DOF_init;
+	*/
 }
 
 

@@ -64,8 +64,44 @@ private:
 	{
     	int flag;
     	int64_t time;
+    	int i_jump_no;
+
+    	int current_point;
+    	float timearray__mapcruise[200];
 
 	}begin_init;
+
+
+
+
+	//20151215 added for map cruise:
+	float points_mapcruise[3][20];
+	float velocity_mapcruise[20];
+	float yaw_mapcruise[20];
+	float timearray__mapcruise[40];
+	int i_mapcruise;  //no of commanded target points
+	double ll_mapcruise[3];
+	float point_current[3];
+	float P_ini_cruise[3];
+	int current_point=0;
+	int  i_jump_no;
+	float time_current[4]={0,0,0,0};
+	float yaw_6DOF_init;
+	void reset_yaw_control();
+	void rotate_yaw_mapcruise(int i);
+	unsigned int Pnomflag =1; //flag determing which trajectory is to be used
+
+	float T_sampling;
+	float time_doby_last;
+
+	float P_nom[3];
+	float gamma_nom[3];
+	float gamma_com[3];
+	float P_sen[3];
+	float gamma_sen[3];
+
+
+
 
     struct
     {
