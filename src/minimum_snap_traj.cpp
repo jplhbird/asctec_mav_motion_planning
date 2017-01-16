@@ -12,9 +12,7 @@
 
 
 
-Minimumsnap::Minimumsnap(ros::NodeHandle & nh):
-		nh_minsnap(nh)
-
+Minimumsnap::Minimumsnap()
 {
 
 	taj_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
@@ -58,7 +56,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 	ts_sec =((float)ts_usec)/1.0e6;
 
-//	ROS_INFO_STREAM("current time (sec)"<<(ts_sec));
+ 	ROS_INFO_STREAM("current time (sec)"<<(ts_sec));
 
 
 }
@@ -119,6 +117,19 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	flag.calcmd=1;
 
 
+
+}
+
+
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "minimum_snap");
+
+    ros::NodeHandle nh("minimum_snap");
+
+    Minimumsnap minimumfun;
+
+    ros::spin();
 
 }
 

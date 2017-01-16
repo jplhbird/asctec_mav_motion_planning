@@ -35,7 +35,7 @@
 
 class Minimumsnap{
 public:
-	Minimumsnap(ros::NodeHandle & nh);
+	Minimumsnap();
 	~Minimumsnap();
 
 private:

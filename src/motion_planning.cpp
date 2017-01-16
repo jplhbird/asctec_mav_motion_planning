@@ -35,7 +35,7 @@ pnh_("~/fcu")
     //topic
 
 
-	//rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
+	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 
 	gps_custom_sub_ =n.subscribe<asctec_hl_comm::GpsCustom> ("fcu/gps_custom", 1, &TeleopIMU::gpsdataCallback, this);
 
@@ -439,7 +439,7 @@ int main(int argc, char **argv)
 
     TeleopIMU teopuav;
 
-    Minimumsnap minimumfun(nh);
+ //   Minimumsnap minimumfun;
 
     ros::spin();
 

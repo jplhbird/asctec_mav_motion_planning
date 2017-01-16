@@ -216,7 +216,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 
 set(ASCTEC_MAV_MOTION_PLANNING_SRC
-    src/minimum_snap_traj.cpp
+#   src/minimum_snap_traj.cpp
     )
 
 
@@ -229,5 +229,18 @@ add_dependencies(motion_mav ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTE
 
 # make sure configure headers are built before any node using them
 add_dependencies(motion_mav ${PROJECT_NAME}_gencfg)
+
+
+add_executable(minimum_snap ${ASCTEC_MAV_MOTION_PLANNING_SRC} src/minimum_snap_traj.cpp)
+target_link_libraries(minimum_snap ${catkin_LIBRARIES})
+# add_dependencies(minimum_snap asctec_mav_motion_planning_generate_messages_cpp)
+add_dependencies(minimum_snap ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+
+# make sure configure headers are built before any node using them
+add_dependencies(minimum_snap ${PROJECT_NAME}_gencfg)
+
+
+
 
 
