@@ -58,7 +58,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 	ts_sec =((float)ts_usec)/1.0e6;
 
-
+	ROS_INFO_STREAM("current time (sec)"<<(ts_sec));
 
 
 }
