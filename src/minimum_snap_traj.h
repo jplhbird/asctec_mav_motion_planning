@@ -25,6 +25,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <nav_msgs/Path.h>
+//#include <asctec_mav_motion_planning/flag_cmd.h>
 
 
 // dynamic reconfigure includes
@@ -64,6 +65,7 @@ private:
     ros::Subscriber imu_custom_sub_;
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
+    ros::Publisher flag_cmd_pub; //determine if the cmd is transmitted from RC transmitter or PC
 
 
 

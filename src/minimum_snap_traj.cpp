@@ -31,6 +31,8 @@ Minimumsnap::Minimumsnap()
 
 	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
 
+	//flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cum",1); //flag determine which device will sends the position cmd
+
 
 
 	//init the flag values
@@ -48,7 +50,11 @@ Minimumsnap::Minimumsnap()
 	}
 	time_doby_last=0;
 
+	i_jump_no=0;
 
+	i_mapcruise=0;
+	T_sampling =0.05;
+	yaw_6DOF_init=0;
 
 
 }
@@ -87,7 +93,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	time_doby_last=time_body;
 
 
- 	ROS_INFO_STREAM("current time (ts_sec)"<<(time_body));
+ 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
  	ROS_INFO_STREAM("current time (ts_usec)"<<(ts_usec));
 
 	//map cruise trajectory, the trajectory follows minimum snap
@@ -186,8 +192,6 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata){
 
-
-
 	double quaternion[4];
 	double R_temp[9];
 	double gamma_temp[3];
@@ -246,7 +250,7 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 	// non-dimensional state:
 	//9-order polynomials:
-	//coefficients, rise order: A= [0; 0; 0; 7 ;-0.005942;-20.96748 ;20.9286 ;-5.922 ;-0.0423 ;0.0091;];
+	//coefficients, rise order: A= [0; 0; 0; 7 ;-0.00594poses2;-20.96748 ;20.9286 ;-5.922 ;-0.0423 ;0.0091;];
 
 	//9-order polynomial non-dimensional state:
 	x_tilde  =  7.0f*      tau_i*tau_i*tau_i
@@ -267,10 +271,13 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
-
-
+	P_sen[0]=pose->position.x;
+	P_sen[1]=pose->position.y;
+	P_sen[2]=pose->position.z;
 
 }
+
+
 
 
 
@@ -280,6 +287,61 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 
 	begin_init.flag=0;
 
+	i_mapcruise = positioncmd->poses.size();
+
+	for(int i = 0; i < positioncmd->poses.size(); i++)
+	{
+		geometry_msgs::Pose wp = positioncmd->poses[i].pose;
+
+//		float points_mapcruise[3][20];
+//		float velocity_mapcruise[20];
+//		float yaw_mapcruise[20];
+//		float timearray__mapcruise[40];
+
+		points_mapcruise[0][i] = wp.position.x;
+		points_mapcruise[1][i] = wp.position.y;
+		points_mapcruise[2][i] = wp.position.z;
+
+
+
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+
+		//notice the order of quaternion:
+		quaternion[1] =wp.orientation.x;
+		quaternion[2] =wp.orientation.y;
+		quaternion[3] =wp.orientation.z;
+		quaternion[0] =wp.orientation.w;
+
+
+		quaternion_to_R(&quaternion[0], &R_temp[0]);
+
+		RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//expressed in NED definition, important, according to the definition of the body-fxied frame, we should modified the following
+		gamma_temp[1]= -gamma_temp[1];
+		gamma_temp[2]= -gamma_temp[2];
+
+
+		//commanded yaw angle, unit is in rad:
+		yaw_mapcruise[i]=gamma_temp[2];
+
+
+		//commanded speed, should be adjusted according to the actual situation
+		velocity_mapcruise[i]=20;
+	}
+
+
+	Pnomflag =100; //exclued other commands
+	//time_body=0;
+	current_point=0;
+	i_jump_no=20;
+	for(int i=0;i<4;i++)
+	{
+		time_current[i]=0.0f;
+	}
 
 }
 

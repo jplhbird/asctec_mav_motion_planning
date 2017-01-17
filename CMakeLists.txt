@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   asctec_hl_comm
   dynamic_reconfigure
+  message_generation
 )
 
 find_package(cmake_modules REQUIRED)
@@ -61,11 +62,10 @@ generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+ add_message_files(
+   FILES
+   flag_cmd.msg
+ )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -82,10 +82,10 @@ generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   std_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -119,7 +119,7 @@ generate_dynamic_reconfigure_options(cfg/motion_planning_para.cfg)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES test_MTI_G2
-  CATKIN_DEPENDS roscpp rospy std_msgs roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
+  CATKIN_DEPENDS message_runtime roscpp rospy std_msgs roscpp sensor_msgs tf dynamic_reconfigure asctec_hl_comm actionlib diagnostic_updater sensor_fusion_comm
 #  DEPENDS system_lib
 )
 
