@@ -188,14 +188,40 @@ void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imuda
 
 
 
-	float quaternion[4];
+	double quaternion[4];
+	double R_temp[9];
+	double gamma_temp[3];
 
 
 	//notice the order of quaternion:
-	quaternion[0] =imudata->orientation.x;
-	quaternion[1] =imudata->orientation.y;
-	quaternion[2] =imudata->orientation.z;
-	quaternion[3] =imudata->orientation.w;
+	quaternion[1] =imudata->orientation.x;
+	quaternion[2] =imudata->orientation.y;
+	quaternion[3] =imudata->orientation.z;
+	quaternion[0] =imudata->orientation.w;
+
+	quaternion_to_R(&quaternion[0], &R_temp[0]);
+
+	RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+	//expressed in NED definition, important:
+	gamma_sen[0]= (float)gamma_temp[0];
+	gamma_sen[1]= -(float)gamma_temp[1];
+	gamma_sen[2]= -(float)gamma_temp[2];
+
+
+	//used to test:
+	gamma_sen[0]=gamma_sen[0]/3.14159265359*180;
+	gamma_sen[1]=gamma_sen[1]/3.14159265359*180;
+	gamma_sen[2]=gamma_sen[2]/3.14159265359*180;
+
+
+	ROS_INFO_STREAM("r: "<<(R_temp[8]));
+
+	ROS_INFO_STREAM("q: "<<(quaternion[0]));
+
+	ROS_INFO_STREAM("phi: "<<(gamma_sen[0]));
+	ROS_INFO_STREAM("theta: "<<(gamma_sen[1]));
+	ROS_INFO_STREAM("psi: "<<(gamma_sen[2]));
 
 
 }

@@ -54,8 +54,8 @@ private:
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
 
-    void quaternion_to_R(float *q, float *r);
-    void RtoEulerangle(float *r, float *angle);
+    void quaternion_to_R(double *q, double *r);
+    void RtoEulerangle(double *r, double *angle);
 
 
     ros::Publisher taj_pub;  //publish the calculated minimum trajectory

@@ -24,10 +24,10 @@
 //
 //Rout=[R(1,:),R(2,:),R(3,:)]';
 
-void Minimumsnap::quaternion_to_R(float *q, float *r){
+void Minimumsnap::quaternion_to_R(double *q, double *r){
 
 	//input quaternion:
-	float a,b,c,d;
+	double a,b,c,d;
 	a= *q;
 	b= *(q+1);
 	c= *(q+2);
@@ -52,7 +52,7 @@ void Minimumsnap::quaternion_to_R(float *q, float *r){
 	*(r+8)=a*a-b*b-c*c+d*d;
 }
 
-void Minimumsnap::RtoEulerangle(float *r, float *angle){
+void Minimumsnap::RtoEulerangle(double *r, double *angle){
 //	function ea=Euler_angles(u)
 //	%calculate the Euler angles from rotation matrix
 //
@@ -62,17 +62,17 @@ void Minimumsnap::RtoEulerangle(float *r, float *angle){
 //	   u(4), u(5), u(6);
 //	   u(7), u(8), u(9)];
 
-	float R[3][3];
-	float ea_m[3];
+	double R[3][3];
+	double ea_m[3];
 
-	float theta;
-	float phi;
-	float psi;
-	float pi=3.14159265;
+	double theta;
+	double phi;
+	double psi;
+	double pi=3.14159265359;
 
-	R[0][1]=*r;
-	R[0][2]=*(r+1);
-	R[0][3]=*(r+2);
+	R[0][0]=*r;
+	R[0][1]=*(r+1);
+	R[0][2]=*(r+2);
 	R[1][0]=*(r+3);
 	R[1][1]=*(r+4);
 	R[1][2]=*(r+5);
