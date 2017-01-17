@@ -31,7 +31,7 @@ Minimumsnap::Minimumsnap()
 
 	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
 
-	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cum",1); //flag determine which device will sends the position cmd
+	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
 
 
 
@@ -180,12 +180,27 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			{
 				//finish cruise:
 				Pnomflag =1;
+
+				asctec_mav_motion_planning::flag_cmd flag_topic;
+				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
+				flag_cmd_pub.publish(flag_topic);
 			}
 
 			//time_body =time_body+T_sampling;
 		}
 
 	}
+
+	asctec_hl_comm::mav_ctrl msg;
+
+	//important, notice the unit and the definition of the coordinate frame:
+	msg.x = P_nom[0];
+	msg.y = P_nom[1];
+	msg.z = P_nom[2];
+	msg.yaw = gamma_com[2];
+	msg.type = asctec_hl_comm::mav_ctrl::position;
+
+	taj_pub.publish(msg);
 
 }
 
@@ -342,6 +357,11 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	{
 		time_current[i]=0.0f;
 	}
+
+
+	asctec_mav_motion_planning::flag_cmd flag_topic;
+	flag_topic.flag=1; //1: position is give by PC, 2: position is give by RC transmitter
+	flag_cmd_pub.publish(flag_topic);
 
 }
 

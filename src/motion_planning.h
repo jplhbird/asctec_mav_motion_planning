@@ -33,6 +33,7 @@
 
 #include <nav_msgs/Odometry.h>
 #include <sensor_fusion_comm/ExtState.h>
+#include <asctec_mav_motion_planning/flag_cmd.h>
 
 
 // dynamic reconfigure includes
@@ -62,6 +63,8 @@ private:
     void gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr&   gpsdata);
 
     void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
+
+    void flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd);
 
     //send command in acc mode
     void send_acc_ctrl(void);
@@ -94,6 +97,8 @@ private:
 
     ros::Subscriber sub;
 
+    ros::Subscriber flag_cmd_sub;
+
 
     sensor_fusion_comm::ExtState state_feedback;
 
@@ -101,6 +106,15 @@ private:
     Eigen::Vector3d LLA_0;  //latitude, longitude, altitude, this order, the original point
 
     asctec_hl_comm::mav_rcdata rcdata_last; //record the rcdata last time
+
+    //determine if the RC transmitter sends the position commands
+    int flag_rc_cmd;
+
+
+    asctec_hl_comm::mav_ctrl global_position_cmd; //global position commands, used to calculate the position commands from RC transmitter
+
+    int64_t time;
+    float time_body, time_doby_last;
 
 
     /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"

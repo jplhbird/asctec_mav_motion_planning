@@ -65,7 +65,11 @@ private:
     ros::Subscriber imu_custom_sub_;
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
-    ros::Publisher flag_cmd_pub; //determine if the cmd is transmitted from RC transmitter or PC
+
+    //determine if the cmd is transmitted from RC transmitter or PC
+    //flag_cmd = 1: position command is give by PC
+    //flag_cmd = 2: position command is give by RC transmitter
+    ros::Publisher flag_cmd_pub;
 
 
 

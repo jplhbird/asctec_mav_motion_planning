@@ -41,6 +41,8 @@ pnh_("~/fcu")
 
 	imu_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
 
+	flag_cmd_sub = n.subscribe<asctec_mav_motion_planning::flag_cmd>("flag_cmd", 1, &TeleopIMU::flagcmdCallback, this); //flag determine which device will sends the position cmd
+
 
 
 
@@ -50,8 +52,21 @@ pnh_("~/fcu")
 	ReconfigureServer::CallbackType f = boost::bind(&TeleopIMU::cbmotionConfig, this, _1, _2);
 	motionconf_srv_->setCallback(f);
 
+	flag_rc_cmd=1;
+
+	time_doby_last=0;
+
 
    // send_acc_ctrl();
+}
+
+
+void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd){
+
+	if (flagcmd->flag==1)
+		flag_rc_cmd=1; //position cmd from RC transmitter is used
+	else if (flagcmd->flag==2)
+		flag_rc_cmd=0; //position cmd from RC transmitte is not used
 }
 
 
@@ -114,6 +129,27 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
 
+
+	int64_t ts_usec;
+	float ts_sec;
+	float time_body;
+	float T_sampling;
+
+
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
+	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
+
+
+	T_sampling=time_body-time_doby_last;
+
+	time_doby_last=time_body;
+
+
+ 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ 	ROS_INFO_STREAM("current time (ts_usec)"<<(T_sampling));
+
+
 	asctec_hl_comm::mav_ctrl msg;
 
 	if  ((rcdata->channel[5]) < 1800 )
@@ -156,7 +192,19 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	if ((rcdata->channel[5]) > 4000 )
 	{
 		msg.type = asctec_hl_comm::mav_ctrl::position;
+
+		if (flag_rc_cmd == 1)
+		{
+			//position cmd is from RC transmitter, transmitter sends velocity commands:
+
+			global_position_cmd.x =  global_position_cmd.x + (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
+			global_position_cmd.y =  global_position_cmd.y +  (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
+			global_position_cmd.yaw =  global_position_cmd.yaw  + (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+			global_position_cmd.z = global_position_cmd.z + ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+
+		}
 	}
+
 
 
 	if ( ((rcdata_last.channel[5])<4000) & ((rcdata->channel[5])>4000))
@@ -164,6 +212,16 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		//initialize the original point, set the current position as the original point
 
 		LLA_0 = LLA;
+
+		//in GPS environment, the following function is used:
+		TeleopIMU::LLP_Euclidean(LLA);
+
+		global_position_cmd.x = state_feedback.pose.position.x;
+		global_position_cmd.y = state_feedback.pose.position.y;
+		global_position_cmd.z = state_feedback.pose.position.z;
+
+		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
 	}
 
 
