@@ -100,6 +100,10 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 	state_feedback.velocity.x=gpsdata->velocity_x;
 	state_feedback.velocity.y=gpsdata->velocity_y;
 
+	ROS_INFO_STREAM("feedback position x: "<<(state_feedback.velocity.x));
+	ROS_INFO_STREAM("feedback position y: "<<(state_feedback.velocity.y));
+	ROS_INFO_STREAM("feedback position z: "<<(state_feedback.velocity.z));
+
 
 }
 
@@ -147,7 +151,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 
  	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (ts_usec)"<<(T_sampling));
+ 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
 	asctec_hl_comm::mav_ctrl msg;
@@ -191,18 +195,21 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	if ((rcdata->channel[5]) > 4000 )
 	{
-		msg.type = asctec_hl_comm::mav_ctrl::position;
+		//msg.type = asctec_hl_comm::mav_ctrl::position;
+		global_position_cmd.type = asctec_hl_comm::mav_ctrl::position;
 
 		if (flag_rc_cmd == 1)
 		{
 			//position cmd is from RC transmitter, transmitter sends velocity commands:
 
-			global_position_cmd.x =  global_position_cmd.x + (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
-			global_position_cmd.y =  global_position_cmd.y +  (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
-			global_position_cmd.yaw =  global_position_cmd.yaw  + (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
-			global_position_cmd.z = global_position_cmd.z + ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+			global_position_cmd.x =  global_position_cmd.x + T_sampling* (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
+			global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
+			global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+			global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 		}
+
+		msg = global_position_cmd;
 	}
 
 
@@ -225,21 +232,21 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	}
 
 
-	ROS_INFO_STREAM("k_stick: "<< k_stick_);
-
-	ROS_INFO_STREAM("k_stick_yaw: "<< k_stick_yaw_);
-
-	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
-	ROS_INFO_STREAM("channel 1: "<<(rcdata->channel[1]));
-	ROS_INFO_STREAM("channel 2: "<<(rcdata->channel[2]));
-	ROS_INFO_STREAM("channel 3: "<<(rcdata->channel[3]));
-	ROS_INFO_STREAM("channel 4: "<<(rcdata->channel[4]));
-	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
-	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
-
-	ROS_INFO_STREAM("cmd from HL to LL, x: "<<msg.x);
-	ROS_INFO_STREAM("cmd from HL to LL, y: "<<msg.y);
-	ROS_INFO_STREAM("cmd from HL to LL, yaw: "<<msg.yaw);
+//	ROS_INFO_STREAM("k_stick: "<< k_stick_);
+//
+//	ROS_INFO_STREAM("k_stick_yaw: "<< k_stick_yaw_);
+//
+//	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
+//	ROS_INFO_STREAM("channel 1: "<<(rcdata->channel[1]));
+//	ROS_INFO_STREAM("channel 2: "<<(rcdata->channel[2]));
+//	ROS_INFO_STREAM("channel 3: "<<(rcdata->channel[3]));
+//	ROS_INFO_STREAM("channel 4: "<<(rcdata->channel[4]));
+//	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
+//	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
+//
+//	ROS_INFO_STREAM("cmd from HL to LL, x: "<<msg.x);
+//	ROS_INFO_STREAM("cmd from HL to LL, y: "<<msg.y);
+//	ROS_INFO_STREAM("cmd from HL to LL, yaw: "<<msg.yaw);
 
     llcmd_pub_vel.publish(msg);
     ext_state.publish(state_feedback);
@@ -247,13 +254,13 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
     rcdata_last = *rcdata; //record the rcdata of last time
 
 
-	ROS_INFO_STREAM("channel 0 record: "<<(rcdata_last.channel[0]));
-	ROS_INFO_STREAM("channel 1 record: "<<(rcdata_last.channel[1]));
-	ROS_INFO_STREAM("channel 2 record: "<<(rcdata_last.channel[2]));
-	ROS_INFO_STREAM("channel 3 record: "<<(rcdata_last.channel[3]));
-	ROS_INFO_STREAM("channel 4 record: "<<(rcdata_last.channel[4]));
-	ROS_INFO_STREAM("channel 5 record: "<<(rcdata_last.channel[5]));
-	ROS_INFO_STREAM("channel 6 record: "<<(LLA_0));
+//	ROS_INFO_STREAM("channel 0 record: "<<(rcdata_last.channel[0]));
+//	ROS_INFO_STREAM("channel 1 record: "<<(rcdata_last.channel[1]));
+//	ROS_INFO_STREAM("channel 2 record: "<<(rcdata_last.channel[2]));
+//	ROS_INFO_STREAM("channel 3 record: "<<(rcdata_last.channel[3]));
+//	ROS_INFO_STREAM("channel 4 record: "<<(rcdata_last.channel[4]));
+//	ROS_INFO_STREAM("channel 5 record: "<<(rcdata_last.channel[5]));
+//	ROS_INFO_STREAM("channel 6 record: "<<(LLA_0));
 
 }
 

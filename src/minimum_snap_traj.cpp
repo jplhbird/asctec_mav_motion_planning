@@ -189,18 +189,19 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			//time_body =time_body+T_sampling;
 		}
 
+		asctec_hl_comm::mav_ctrl msg;
+
+		//important, notice the unit and the definition of the coordinate frame:
+		msg.x = P_nom[0];
+		msg.y = P_nom[1];
+		msg.z = P_nom[2];
+		msg.yaw = gamma_com[2];
+		msg.type = asctec_hl_comm::mav_ctrl::position;
+
+		taj_pub.publish(msg);
 	}
 
-	asctec_hl_comm::mav_ctrl msg;
 
-	//important, notice the unit and the definition of the coordinate frame:
-	msg.x = P_nom[0];
-	msg.y = P_nom[1];
-	msg.z = P_nom[2];
-	msg.yaw = gamma_com[2];
-	msg.type = asctec_hl_comm::mav_ctrl::position;
-
-	taj_pub.publish(msg);
 
 }
 
