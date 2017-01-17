@@ -29,6 +29,8 @@ Minimumsnap::Minimumsnap()
 
 	rcdata_sub_ = nh_minsnap.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &Minimumsnap::rcdataCallback, this);
 
+	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
+
 
 
 	//init the flag values
@@ -44,6 +46,9 @@ Minimumsnap::Minimumsnap()
 	{
 		time_current[i]=0;
 	}
+	time_doby_last=0;
+
+
 
 
 }
@@ -85,9 +90,9 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
  	ROS_INFO_STREAM("current time (ts_sec)"<<(time_body));
  	ROS_INFO_STREAM("current time (ts_usec)"<<(ts_usec));
 
-	//map cruise trajectory, the trajectory follows minimun snap
+	//map cruise trajectory, the trajectory follows minimum snap
 	//use the following function:
-	//trajectory planning of a strait line from start point to end point, munimum snap trajectory
+	//trajectory planning of a strait line from start point to end point, minimum snap trajectory
 	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
 	{
 		//record the yaw angle at the beginning of each line:
@@ -175,6 +180,23 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		}
 
 	}
+
+}
+
+
+void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata){
+
+
+
+	float quaternion[4];
+
+
+	//notice the order of quaternion:
+	quaternion[0] =imudata->orientation.x;
+	quaternion[1] =imudata->orientation.y;
+	quaternion[2] =imudata->orientation.z;
+	quaternion[3] =imudata->orientation.w;
+
 
 }
 

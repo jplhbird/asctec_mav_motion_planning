@@ -20,6 +20,7 @@
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/mav_status.h>
 #include <asctec_hl_comm/GpsCustom.h>
+
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
@@ -48,13 +49,19 @@ private:
 
 	void rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata);
 
+	void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
+
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
+
+    void quaternion_to_R(float *q, float *r);
+    void RtoEulerangle(float *r, float *angle);
 
 
     ros::Publisher taj_pub;  //publish the calculated minimum trajectory
     ros::Publisher control_pub;  //publish the calculated minimum trajectory
     ros::Subscriber rcdata_sub_; //subscribe the rcdata from /fcu
+    ros::Subscriber imu_custom_sub_;
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
 
@@ -89,7 +96,7 @@ private:
 	float yaw_6DOF_init;
 	void reset_yaw_control();
 	void rotate_yaw_mapcruise(int i);
-	unsigned int Pnomflag; //flag determing which trajectory is to be used
+	unsigned int Pnomflag; //flag determining which trajectory is to be used
 
 	float T_sampling;
 	float time_doby_last;
