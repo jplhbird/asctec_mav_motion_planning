@@ -31,7 +31,7 @@ Minimumsnap::Minimumsnap()
 
 	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
 
-	//flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cum",1); //flag determine which device will sends the position cmd
+	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cum",1); //flag determine which device will sends the position cmd
 
 
 

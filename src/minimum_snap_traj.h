@@ -25,7 +25,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <nav_msgs/Path.h>
-//#include <asctec_mav_motion_planning/flag_cmd.h>
+#include <asctec_mav_motion_planning/flag_cmd.h>
 
 
 // dynamic reconfigure includes
