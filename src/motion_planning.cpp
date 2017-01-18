@@ -187,8 +187,8 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 		 //note the rcdata is not the same with the command sent to LL from HL
 
-		 msg.x =  (rcdata->channel[0]-2047) *k_stick_/1000.0*M_PI/180.0;
-		 msg.y =  (-rcdata->channel[1] + 2047) *k_stick_/1000.0*M_PI/180.0;   //opposite direction
+		 msg.x =  (rcdata->channel[0]-2047) *k_stick_/1000.0*M_PI/180.0;  //pitch
+		 msg.y =  (-rcdata->channel[1] + 2047) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
 		 msg.yaw = (-rcdata->channel[3] + 2047) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
 
 		 msg.z = rcdata->channel[2]/4096.0;
@@ -204,7 +204,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 //		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
 //		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
 
-		msg.x = (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
+		msg.x = -(rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
 		msg.y = (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
 		msg.yaw = (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
 		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
@@ -221,7 +221,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		{
 			//position cmd is from RC transmitter, transmitter sends velocity commands:
 
-			global_position_cmd.x =  global_position_cmd.x + T_sampling* (rcdata->channel[0]-2047) /2047*config_motion.max_velocity_xy;
+			global_position_cmd.x =  global_position_cmd.x - T_sampling* (rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
 			global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
 			global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
 			global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
