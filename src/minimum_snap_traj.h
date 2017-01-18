@@ -40,6 +40,9 @@ public:
 	Minimumsnap();
 	~Minimumsnap();
 
+    void quaternion_to_R(double *q, double *r);
+    void RtoEulerangle(double *r, double *angle);
+
 private:
 
 	ros::NodeHandle nh_minsnap;
@@ -55,15 +58,12 @@ private:
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
 
-    void quaternion_to_R(double *q, double *r);
-    void RtoEulerangle(double *r, double *angle);
-
 
     ros::Publisher taj_pub;  //publish the calculated minimum trajectory
     ros::Publisher control_pub;  //publish the calculated minimum trajectory
     ros::Subscriber rcdata_sub_; //subscribe the rcdata from /fcu
     ros::Subscriber imu_custom_sub_;
-    ros::Subscriber pose_sub_;  //subscribe the current position of the UAV
+    ros::Subscriber pose_sub_;  //subscribe the current position of the UAV, from SLAM module
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
 
     //determine if the cmd is transmitted from RC transmitter or PC
@@ -113,8 +113,8 @@ private:
 	float P_sen[3];
 	float gamma_sen[3];
 
-
-
+    //determine if the computer sends the position commands
+    int flag_pc_cmd;
 
     struct
     {

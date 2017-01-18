@@ -21,7 +21,7 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
-
+#include <geometry_msgs/Pose.h>
 #include <asctec_hl_comm/mav_rcdata.h>
 #include <asctec_hl_comm/mav_ctrl.h>
 #include <asctec_hl_comm/mav_imu.h>
@@ -30,7 +30,6 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
-
 #include <nav_msgs/Odometry.h>
 #include <sensor_fusion_comm/ExtState.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
@@ -66,6 +65,12 @@ private:
 
     void flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd);
 
+	//the topic name is still under discussion, from the SLAM module
+	void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
+
+	//the topic name is still under discussion, from the SLAM module
+	void odometryCallback(const nav_msgs::OdometryConstPtr& odometry);
+
     //send command in acc mode
     void send_acc_ctrl(void);
 
@@ -89,6 +94,9 @@ private:
 
     ros::Publisher ext_state;
 
+    ros::Subscriber pose_sub_;  //subscribe the current position of the UAV, from SLAM module
+    ros::Subscriber odometry_sub_;  //the topic name is still under discussion, from the SLAM module
+
 
     ros::Subscriber rcdata_sub_;
 
@@ -109,6 +117,11 @@ private:
 
     //determine if the RC transmitter sends the position commands
     int flag_rc_cmd;
+
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    int flag_pose_source;
 
 
     asctec_hl_comm::mav_ctrl global_position_cmd; //global position commands, used to calculate the position commands from RC transmitter

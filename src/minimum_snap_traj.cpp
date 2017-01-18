@@ -56,6 +56,7 @@ Minimumsnap::Minimumsnap()
 	T_sampling =0.05;
 	yaw_6DOF_init=0;
 
+	flag_pc_cmd = 0;
 
 }
 
@@ -100,6 +101,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	//use the following function:
 	//trajectory planning of a strait line from start point to end point, minimum snap trajectory
 	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+ 	if (flag_pc_cmd==1)
 	{
 		//record the yaw angle at the beginning of each line:
 		if (i_jump_no==20)
@@ -184,6 +186,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 				asctec_mav_motion_planning::flag_cmd flag_topic;
 				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
 				flag_cmd_pub.publish(flag_topic);
+
+				flag_pc_cmd=0;
 			}
 
 			//time_body =time_body+T_sampling;
@@ -230,18 +234,18 @@ void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imuda
 
 
 	//used to test:
-	gamma_sen[0]=gamma_sen[0]/3.14159265359*180;
-	gamma_sen[1]=gamma_sen[1]/3.14159265359*180;
-	gamma_sen[2]=gamma_sen[2]/3.14159265359*180;
-
-
-	ROS_INFO_STREAM("r: "<<(R_temp[8]));
-
-	ROS_INFO_STREAM("q: "<<(quaternion[0]));
-
-	ROS_INFO_STREAM("phi: "<<(gamma_sen[0]));
-	ROS_INFO_STREAM("theta: "<<(gamma_sen[1]));
-	ROS_INFO_STREAM("psi: "<<(gamma_sen[2]));
+//	gamma_sen[0]=gamma_sen[0]/3.14159265359*180;
+//	gamma_sen[1]=gamma_sen[1]/3.14159265359*180;
+//	gamma_sen[2]=gamma_sen[2]/3.14159265359*180;
+//
+//
+//	ROS_INFO_STREAM("r: "<<(R_temp[8]));
+//
+//	ROS_INFO_STREAM("q: "<<(quaternion[0]));
+//
+//	ROS_INFO_STREAM("phi: "<<(gamma_sen[0]));
+//	ROS_INFO_STREAM("theta: "<<(gamma_sen[1]));
+//	ROS_INFO_STREAM("psi: "<<(gamma_sen[2]));
 
 
 }
@@ -350,7 +354,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	}
 
 
-	Pnomflag =100; //exclued other commands
+	Pnomflag =100; //exclue other commands
 	//time_body=0;
 	current_point=0;
 	i_jump_no=20;
@@ -363,6 +367,8 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	asctec_mav_motion_planning::flag_cmd flag_topic;
 	flag_topic.flag=1; //1: position is give by PC, 2: position is give by RC transmitter
 	flag_cmd_pub.publish(flag_topic);
+
+	flag_pc_cmd=1; //activate the flag determine the computer sends the commands,
 
 }
 

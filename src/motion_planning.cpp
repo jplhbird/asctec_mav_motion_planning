@@ -29,11 +29,17 @@ pnh_("~/fcu")
 
     pub3 = n.advertise<geometry_msgs::TwistStamped>("command/twist",1); //velocity command to quadrotor
 
-	sub=n.subscribe<sensor_msgs::Imu>("/imu/data",10,&TeleopIMU::callBack,this);
+
     //should run rosrun xsens_driver mtnode.py in order to run the xsens_driver node,
     //this node will advertise /imu/data
     //topic
+	sub=n.subscribe<sensor_msgs::Imu>("/imu/data",10,&TeleopIMU::callBack,this);
 
+	//the topic name is still under discussion, from the SLAM module
+	pose_sub_ = n.subscribe("posefromslam", 1, &TeleopIMU::poseCallback, this);
+
+	//the topic name is still under discussion, from the SLAM module
+	odometry_sub_ = n.subscribe<nav_msgs::Odometry>("odometryfromslam", 1, &TeleopIMU::odometryCallback, this);
 
 	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 
@@ -46,27 +52,36 @@ pnh_("~/fcu")
 
 
 
+
+
 	//config_motion = asctec_mav_motion_planning::motion_planning_paraConfig::__getDefault__();
 	  // bring up dynamic reconfigure
 	motionconf_srv_ = new ReconfigureServer(pnh_);
 	ReconfigureServer::CallbackType f = boost::bind(&TeleopIMU::cbmotionConfig, this, _1, _2);
 	motionconf_srv_->setCallback(f);
 
+	//determine if the RC data transmit position commands:
 	flag_rc_cmd=1;
 
+
+	//record the time
 	time_doby_last=0;
 
+	//outdoor or indoor:
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    flag_pose_source = 1;
 
-   // send_acc_ctrl();
 }
 
 
 void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd){
 
 	if (flagcmd->flag==1)
-		flag_rc_cmd=1; //position cmd from RC transmitter is used
+		flag_rc_cmd=0; //position cmd from RC transmitter is not used
 	else if (flagcmd->flag==2)
-		flag_rc_cmd=0; //position cmd from RC transmitte is not used
+		flag_rc_cmd=1; //position cmd from RC transmitter is used
 }
 
 
@@ -86,24 +101,21 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 
 
 // gpsdata:
-
-
-
 	LLA[0]= gpsdata->latitude;
 	LLA[1]= gpsdata->longitude;
 	LLA[2]= gpsdata->altitude;
 
-
 	TeleopIMU::LLP_Euclidean(LLA);
 
+	if (flag_pose_source==1) //outdoor, velocity
+	{
+		state_feedback.velocity.x=gpsdata->velocity_x;
+		state_feedback.velocity.y=gpsdata->velocity_y;
 
-	state_feedback.velocity.x=gpsdata->velocity_x;
-	state_feedback.velocity.y=gpsdata->velocity_y;
-
-	ROS_INFO_STREAM("feedback position x: "<<(state_feedback.velocity.x));
-	ROS_INFO_STREAM("feedback position y: "<<(state_feedback.velocity.y));
-	ROS_INFO_STREAM("feedback position z: "<<(state_feedback.velocity.z));
-
+		ROS_INFO_STREAM("feedback position x: "<<(state_feedback.velocity.x));
+		ROS_INFO_STREAM("feedback position y: "<<(state_feedback.velocity.y));
+		ROS_INFO_STREAM("feedback position z: "<<(state_feedback.velocity.z));
+	}
 
 }
 
@@ -111,12 +123,37 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 //use the GPS height as the external height and z-velocity
 	//only used in test
 
-	state_feedback.pose.position.z= imudata->height;
+	if (flag_pose_source==1) //outdoor, velocity
+	{
 
-	state_feedback.velocity.z=imudata->differential_height;
+		state_feedback.pose.position.z= imudata->height;
 
-	state_feedback.pose.orientation =imudata->orientation;
+		state_feedback.velocity.z=imudata->differential_height;
 
+		state_feedback.pose.orientation =imudata->orientation;
+
+	}
+
+
+
+	//test the frequency of the data:
+	int64_t ts_usec;
+	float ts_sec;
+	float time_body;
+	float T_sampling;
+
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
+	T_sampling=time_body-time_doby_last;
+	time_doby_last=time_body;
+
+ 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+
+
+
+	//publish the external state for position control purpose
+	ext_state.publish(state_feedback);
 }
 
 
@@ -140,18 +177,14 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	float T_sampling;
 
 
-	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-
-	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
-
-
-	T_sampling=time_body-time_doby_last;
-
-	time_doby_last=time_body;
-
-
- 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+//	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+//	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
+//	T_sampling=time_body-time_doby_last;
+//	time_doby_last=time_body;
+//
+//
+// 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+// 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
 	asctec_hl_comm::mav_ctrl msg;
@@ -356,7 +389,7 @@ void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
     velquadrotor.twist.angular.y = imu->angular_velocity.y;
     velquadrotor.twist.angular.z = imu->angular_velocity.z;
 
-    //publish the massege
+    //publish the massage
      pub3.publish(velquadrotor);
 
 }
@@ -481,15 +514,36 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 		P_sen[i]= (float)tempP[i];
 	}
 
-
-	state_feedback.pose.position.x = P_sen[0];
-	state_feedback.pose.position.y = P_sen[1];
-	state_feedback.pose.position.z = P_sen[2];
+	if (flag_pose_source ==1) //outdoor, position
+	{
+		state_feedback.pose.position.x = P_sen[0];
+		state_feedback.pose.position.y = P_sen[1];
+		state_feedback.pose.position.z = P_sen[2];
+	}
 
 }
 
 
+void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
+	if (flag_pose_source == 2) //indoor, position
+	{
+		state_feedback.pose.position = pose->position;
+		state_feedback.pose.orientation = pose->orientation;
+
+	}
+
+}
+
+
+void TeleopIMU::odometryCallback(const nav_msgs::OdometryConstPtr& odometry){
+
+	if (flag_pose_source == 2) //indoor, linear velocity
+	{
+		state_feedback.velocity = odometry->twist.twist.linear;
+	}
+
+}
 
 
 
