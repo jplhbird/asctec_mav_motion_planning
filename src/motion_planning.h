@@ -95,6 +95,7 @@ private:
     ros::Publisher llcmd_pub_vel;
 
     ros::Publisher ext_state;
+    ros::Publisher position_gps;  //publish the position from GPS
 
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV, from SLAM module
     ros::Subscriber odometry_sub_;  //the topic name is still under discussion, from the SLAM module

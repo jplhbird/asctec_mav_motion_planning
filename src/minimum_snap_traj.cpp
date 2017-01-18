@@ -20,6 +20,8 @@ Minimumsnap::Minimumsnap()
 
 	control_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
 
+	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
+
 	//the topic name is still under discussion, from the SLAM module
 	pose_sub_ = nh_minsnap.subscribe("pose", 1, &Minimumsnap::poseCallback, this);
 
@@ -28,7 +30,9 @@ Minimumsnap::Minimumsnap()
 
 	rcdata_sub_ = nh_minsnap.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &Minimumsnap::rcdataCallback, this);
 	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
-	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
+
+	//gps environment:
+	ext_state_sub_=nh_minsnap.subscribe<sensor_fusion_comm::ExtState>("fcu/state", 1, &Minimumsnap::extstateCallback, this); //external state, to interface of asctec
 
 
 	//init the flag values
@@ -54,6 +58,12 @@ Minimumsnap::Minimumsnap()
 	yaw_6DOF_init=0;
 
 	flag_pc_cmd = 0;
+
+	//outdoor or indoor:
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    flag_pose_source=1;
 
 }
 
@@ -193,6 +203,9 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		msg.z = P_nom[2];
 		msg.yaw = gamma_com[2];
 		msg.type = asctec_hl_comm::mav_ctrl::position;
+		//unit:m/s
+		msg.v_max_xy = 5;
+		msg.v_max_z= 5;
 
 		taj_pub.publish(msg);
 	}
@@ -215,13 +228,13 @@ void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imuda
 
 	math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
 
-	//NED frame
+	//ENU frame
 	math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
-	//expressed in NED definition, important:
+	//expressed in ENU definition, important:
 	gamma_sen[0]= (float)gamma_temp[0];
-	gamma_sen[1]= -(float)gamma_temp[1];
-	gamma_sen[2]= -(float)gamma_temp[2];
+	gamma_sen[1]= (float)gamma_temp[1];
+	gamma_sen[2]= (float)gamma_temp[2];
 
 
 	//used to test:
@@ -282,11 +295,38 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
-	P_sen[0]=pose->position.x;
-	P_sen[1]=pose->position.y;
-	P_sen[2]=pose->position.z;
+
+	//outdoor or indoor:
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    if (flag_pose_source == 2)
+    {
+		P_sen[0]=pose->position.x;
+		P_sen[1]=pose->position.y;
+		P_sen[2]=pose->position.z;
+
+
+    }
 
 }
+
+
+void Minimumsnap::extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& ext_state){
+
+	//outdoor or indoor:
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    if (flag_pose_source == 1)
+    {
+		P_sen[0]=ext_state->pose.position.x;
+		P_sen[1]=ext_state->pose.position.y;
+		P_sen[2]=ext_state->pose.position.z;
+    }
+
+}
+
 
 
 
@@ -327,21 +367,19 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
-		//expressed in NED definition, important, according to the definition of the body-fxied frame, we should modified the following
-		gamma_temp[1]= -gamma_temp[1];
-		gamma_temp[2]= -gamma_temp[2];
-
+		//expressed in ENU definition, important, according to the definition of the body-fixed frame, we should modified the following
+//		gamma_temp[1]= -gamma_temp[1];
+//		gamma_temp[2]= -gamma_temp[2];
 
 		//commanded yaw angle, unit is in rad:
 		yaw_mapcruise[i]=gamma_temp[2];
-
 
 		//commanded speed, should be adjusted according to the actual situation
 		velocity_mapcruise[i]=20;
 	}
 
 
-	Pnomflag =100; //exclue other commands
+	Pnomflag =100; //exclude other commands
 	//time_body=0;
 	current_point=0;
 	i_jump_no=20;
@@ -377,9 +415,9 @@ void Minimumsnap::rotate_yaw_mapcruise(int i)
 void Minimumsnap::reset_yaw_control(void)
 {
 	//reset the yaw angle command to be equal to the current sensed yaw angle, in the range of [-pi,pi]
-	//notice all keep continous of the reset process
+	//notice all keep continuous of the reset process
 	//notice that before the reset, the commanded yaw angle many not in the range of [-pi,pi]
-	//shoul keep stabel dring the reset process
+	//should keep stable during the reset process
 
 	{
 		yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
@@ -401,7 +439,7 @@ void Minimumsnap::reset_yaw_control(void)
 		gamma_ctrl[2]=0;
 	}
 
-  //the middel variables in the psedodifferentiator
+  //the middle variables in the pusedodifferentiator
 	{
 		gamma_nom_filter_m2[2]=0;
 		gamma_nom_filter_m1[2]=yaw_6DOF_init;

@@ -29,6 +29,9 @@ pnh_("~/fcu")
 
     pub3 = n.advertise<geometry_msgs::TwistStamped>("command/twist",1); //velocity command to quadrotor
 
+	//publish gps position and velocity information:
+	position_gps = n.advertise<nav_msgs::Odometry>("gpsinformation",1);
+
 
     //should run rosrun xsens_driver mtnode.py in order to run the xsens_driver node,
     //this node will advertise /imu/data
@@ -115,6 +118,13 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 		ROS_INFO_STREAM("feedback position z: "<<(state_feedback.velocity.z));
 	}
 
+
+	nav_msgs::Odometry msg;
+	msg.pose.pose.position = state_feedback.pose.position;
+	msg.twist.twist.linear = state_feedback.velocity;
+
+	position_gps.publish(msg);
+
 }
 
 void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
@@ -125,9 +135,7 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 	{
 
 		state_feedback.pose.position.z= imudata->height;
-
 		state_feedback.velocity.z=imudata->differential_height;
-
 		state_feedback.pose.orientation =imudata->orientation;
 
 	}
@@ -527,11 +535,11 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 		P_sen[i]= (float)tempP[i];
 	}
 
-	if (flag_pose_source ==1) //outdoor, position
+	if (flag_pose_source ==1) //outdoor, position, in EDU :
 	{
 		state_feedback.pose.position.x = P_sen[0];
-		state_feedback.pose.position.y = P_sen[1];
-		state_feedback.pose.position.z = P_sen[2];
+		state_feedback.pose.position.y = -P_sen[1];
+		state_feedback.pose.position.z = -P_sen[2];
 	}
 
 }
@@ -543,9 +551,7 @@ void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 	{
 		state_feedback.pose.position = pose->position;
 		state_feedback.pose.orientation = pose->orientation;
-
 	}
-
 }
 
 

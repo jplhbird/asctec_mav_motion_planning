@@ -21,7 +21,7 @@
 #include <asctec_hl_comm/mav_imu.h>
 #include <asctec_hl_comm/mav_status.h>
 #include <asctec_hl_comm/GpsCustom.h>
-
+#include <sensor_fusion_comm/ExtState.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
@@ -54,6 +54,8 @@ private:
 
 	void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
 
+	void extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& ext_state);
+
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
 
@@ -70,7 +72,7 @@ private:
     //flag_cmd = 2: position command is give by RC transmitter
     ros::Publisher flag_cmd_pub;
 
-
+    ros::Subscriber ext_state_sub_;
 
     struct
 	{
@@ -122,6 +124,13 @@ private:
     	float vel[3];
     	float pos[3];
     }flag;  //the flag used to determine which function is to run
+
+
+	//outdoor or indoor:
+    //out door or indoor,
+    //1: outdoor, GPS provides the position information
+    //2: indoor, SLAM module provides the position information
+    int flag_pose_source;
 
 
 };
