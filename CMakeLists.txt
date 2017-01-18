@@ -215,9 +215,9 @@ include_directories(
 include_directories(include ${catkin_INCLUDE_DIRS})
 
 
-set(ASCTEC_MAV_MOTION_PLANNING_SRC
-    src/math_function.cpp
-    )
+#set(ASCTEC_MAV_MOTION_PLANNING_SRC
+#    src/math_function.cpp
+#    )
 
 
 

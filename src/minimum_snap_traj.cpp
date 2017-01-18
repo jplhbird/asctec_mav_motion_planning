@@ -26,13 +26,9 @@ Minimumsnap::Minimumsnap()
 	//the topic name is still under discussion:
 	cmd_sub_ = nh_minsnap.subscribe<nav_msgs::Path>("positioncmd", 1, &Minimumsnap::cmdCallback, this);
 
-
 	rcdata_sub_ = nh_minsnap.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &Minimumsnap::rcdataCallback, this);
-
 	imu_custom_sub_ =nh_minsnap.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &Minimumsnap::imudataCallback, this);
-
 	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
-
 
 
 	//init the flag values
@@ -217,9 +213,10 @@ void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imuda
 	quaternion[3] =imudata->orientation.z;
 	quaternion[0] =imudata->orientation.w;
 
-	quaternion_to_R(&quaternion[0], &R_temp[0]);
+	math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
 
-	RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+	//NED frame
+	math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
 	//expressed in NED definition, important:
 	gamma_sen[0]= (float)gamma_temp[0];
@@ -316,8 +313,6 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		points_mapcruise[1][i] = wp.position.y;
 		points_mapcruise[2][i] = wp.position.z;
 
-
-
 		double quaternion[4];
 		double R_temp[9];
 		double gamma_temp[3];
@@ -329,10 +324,8 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		quaternion[3] =wp.orientation.z;
 		quaternion[0] =wp.orientation.w;
 
-
-		quaternion_to_R(&quaternion[0], &R_temp[0]);
-
-		RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
 		//expressed in NED definition, important, according to the definition of the body-fxied frame, we should modified the following
 		gamma_temp[1]= -gamma_temp[1];

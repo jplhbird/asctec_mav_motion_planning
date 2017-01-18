@@ -13,6 +13,7 @@
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "math_function.h"
 
 //#include "sensor_msgs/Imu.h"
 
@@ -79,6 +80,7 @@ private:
 
     //convert the position from LLA to NED coordinate
     void LLP_Euclidean(Eigen::Vector3d & LLA);
+
 
     ros::NodeHandle n;
     ros::NodeHandle pnh_;

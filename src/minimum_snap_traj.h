@@ -12,6 +12,7 @@
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "math_function.h"
 
 
 // message includes
@@ -33,15 +34,13 @@
 #include <asctec_mav_motion_planning/motion_planning_paraConfig.h>
 
 
-
-
 class Minimumsnap{
 public:
 	Minimumsnap();
 	~Minimumsnap();
 
-    void quaternion_to_R(double *q, double *r);
-    void RtoEulerangle(double *r, double *angle);
+//    void quaternion_to_R(double *q, double *r);
+//    void RtoEulerangle(double *r, double *angle);
 
 private:
 

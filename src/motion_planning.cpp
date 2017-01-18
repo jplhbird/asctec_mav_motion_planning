@@ -51,9 +51,6 @@ pnh_("~/fcu")
 
 
 
-
-
-
 	//config_motion = asctec_mav_motion_planning::motion_planning_paraConfig::__getDefault__();
 	  // bring up dynamic reconfigure
 	motionconf_srv_ = new ReconfigureServer(pnh_);
@@ -195,12 +192,6 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		 msg.yaw = (-rcdata->channel[3] + 2047) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
 
 		 msg.z = rcdata->channel[2]/4096.0;
-
-		 //test only:
-//		 msg.x = 0;
-//		 msg.y = 0;
-//		 msg.yaw = 0;
-//		 msg.z = 0;
 	}
 
 	if (((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
@@ -235,6 +226,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
 			global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
+			//unit:m/s
+			global_position_cmd.v_max_xy = 1;
+			global_position_cmd.v_max_z= 1;
 		}
 
 		msg = global_position_cmd;
@@ -255,6 +249,28 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		global_position_cmd.y = state_feedback.pose.position.y;
 		global_position_cmd.z = state_feedback.pose.position.z;
 
+
+
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = state_feedback.pose.orientation.x;
+		quaternion[2] = state_feedback.pose.orientation.y;
+		quaternion[3] = state_feedback.pose.orientation.z;
+		quaternion[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+        //ENU frame, in rad
+		global_position_cmd.yaw = (float)gamma_temp[2];
+
+
+		//record the initial time
 		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 
 	}
@@ -272,9 +288,11 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 //	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
 //	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
 //
-//	ROS_INFO_STREAM("cmd from HL to LL, x: "<<msg.x);
-//	ROS_INFO_STREAM("cmd from HL to LL, y: "<<msg.y);
-//	ROS_INFO_STREAM("cmd from HL to LL, yaw: "<<msg.yaw);
+	ROS_INFO_STREAM("cmd , x: "<<msg.x);
+	ROS_INFO_STREAM("cmd  , y: "<<msg.y);
+	ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
+	ROS_INFO_STREAM("cmd  , z: "<<msg.z);
+
 
     llcmd_pub_vel.publish(msg);
     ext_state.publish(state_feedback);
