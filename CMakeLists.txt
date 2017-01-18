@@ -241,6 +241,16 @@ add_dependencies(minimum_snap ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPOR
 add_dependencies(minimum_snap ${PROJECT_NAME}_gencfg)
 
 
+add_executable(sim_interface ${ASCTEC_MAV_MOTION_PLANNING_SRC} src/sim_interface.cpp)
+target_link_libraries(sim_interface ${catkin_LIBRARIES})
+# add_dependencies(sim_interface asctec_mav_motion_planning_generate_messages_cpp)
+add_dependencies(sim_interface ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+
+# make sure configure headers are built before any node using them
+add_dependencies(sim_interface ${PROJECT_NAME}_gencfg)
+
+
 
 
 

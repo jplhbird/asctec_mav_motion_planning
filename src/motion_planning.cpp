@@ -74,6 +74,14 @@ pnh_("~/fcu")
     //2: indoor, SLAM module provides the position information
     flag_pose_source = 1;
 
+
+    //initialize the commands:
+    global_position_cmd.x = 0;
+    global_position_cmd.y = 0;
+    global_position_cmd.z = 0;
+    global_position_cmd.yaw = 0;
+
+
 }
 
 
