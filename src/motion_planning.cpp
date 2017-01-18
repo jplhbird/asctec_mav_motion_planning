@@ -151,7 +151,6 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
  	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
-
 	//publish the external state for position control purpose
 	ext_state.publish(state_feedback);
 }
@@ -554,7 +553,6 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "motion_mav");
 
     ros::NodeHandle nh("motion_mav");
-
 
     TeleopIMU teopuav;
 
