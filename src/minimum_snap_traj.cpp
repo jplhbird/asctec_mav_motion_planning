@@ -41,6 +41,7 @@ Minimumsnap::Minimumsnap()
 
 	//the initial time once the commanded position is received
 	begin_init.flag=0;
+	begin_init.time=0;
 
 	current_point=0;
 	Pnomflag =1;
@@ -71,9 +72,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	//record the current time:
 
 	int64_t ts_usec;
-	float ts_sec;
-
-	float time_body;
+	double ts_sec;
+	double time_body;
 
 
 	if (begin_init.flag==0)
@@ -85,17 +85,13 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-
-	time_body =((float)(ts_usec-begin_init.time))/1.0e6;  //actual time used in calculation
-
-
+	time_body =((double)(ts_usec-begin_init.time))/1.0e6;  //actual time used in calculation
 	T_sampling=time_body-time_doby_last;
-
 	time_doby_last=time_body;
 
 
  	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (ts_usec)"<<(ts_usec));
+ 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 	//map cruise trajectory, the trajectory follows minimum snap
 	//use the following function:
@@ -204,8 +200,6 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 		taj_pub.publish(msg);
 	}
-
-
 
 }
 

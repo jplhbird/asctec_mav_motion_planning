@@ -127,7 +127,7 @@ private:
     asctec_hl_comm::mav_ctrl global_position_cmd; //global position commands, used to calculate the position commands from RC transmitter
 
     int64_t time;
-    float time_body, time_doby_last;
+    double time_body, time_doby_last;
 
 
     /// gain from AutoPilot values to 1/1000 degree for the input from the pitch and roll "stick"

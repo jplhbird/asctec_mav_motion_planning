@@ -104,8 +104,8 @@ private:
 	void rotate_yaw_mapcruise(int i);
 	unsigned int Pnomflag; //flag determining which trajectory is to be used
 
-	float T_sampling;
-	float time_doby_last;
+	double T_sampling;
+	double time_doby_last;
 
 	float P_nom[3];
 	float gamma_nom[3];

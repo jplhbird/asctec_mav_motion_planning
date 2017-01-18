@@ -66,6 +66,7 @@ pnh_("~/fcu")
 
 	//record the time
 	time_doby_last=0;
+	time = 0;
 
 	//outdoor or indoor:
     //out door or indoor,
@@ -134,25 +135,22 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 
 	}
 
-
-
-	//test the frequency of the data:
-	int64_t ts_usec;
-	float ts_sec;
-	float time_body;
-	float T_sampling;
-
-	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
-	T_sampling=time_body-time_doby_last;
-	time_doby_last=time_body;
-
- 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
-
-
 	//publish the external state for position control purpose
 	ext_state.publish(state_feedback);
+
+	//test the frequency of the data:
+//	int64_t ts_usec;
+//	double ts_sec;
+//	double time_body;
+//	double T_sampling;
+//
+//	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+//	time_body =(double)(ts_usec-time)/1.0e6;  //actual time used in calculation
+//	T_sampling=time_body-time_doby_last;
+//	time_doby_last=time_body;
+//
+// 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+// 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 }
 
 
@@ -171,19 +169,17 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 
 	int64_t ts_usec;
-	float ts_sec;
-	float time_body;
-	float T_sampling;
+	double ts_sec;
+	double time_body;
+	double T_sampling;
 
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	time_body =(double)(ts_usec-time)/1.0e6;  //actual time used in calculation
+	T_sampling=time_body-time_doby_last;
+	time_doby_last=time_body;
 
-//	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-//	time_body =((float)(ts_usec-time))/1.0e6;  //actual time used in calculation
-//	T_sampling=time_body-time_doby_last;
-//	time_doby_last=time_body;
-//
-//
-// 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
-// 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+ 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
 	asctec_hl_comm::mav_ctrl msg;
