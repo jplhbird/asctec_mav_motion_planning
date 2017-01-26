@@ -17,14 +17,14 @@ sim_interface::sim_interface(){
 	imu_pub_= n_sim.advertise<asctec_hl_comm::mav_imu>("fcu/imu_custom", 1);
 	pose_pub_= n_sim.advertise<geometry_msgs::Pose>("posefromslam", 1);
 	odometry_pub_ = n_sim.advertise<nav_msgs::Odometry>("odometryfromslam", 10);
-	cmd_sim_pub = n_sim.advertise<geometry_msgs::PoseStamped>("/firefly/command/pose", 10);
+	cmd_sim_pub = n_sim.advertise<geometry_msgs::PoseStamped>("/pelican/command/pose", 10);
 
 	path_sim_pub = n_sim.advertise<nav_msgs::Path>("positioncmd", 1);  //test only
 
 
 
 	cmd_asctec = n_sim.subscribe<asctec_hl_comm::mav_ctrl>("fcu/control", 1, &sim_interface::cmdcallback, this);
-	odometry_sub_ = n_sim.subscribe<nav_msgs::Odometry>("/firefly/odometry_sensor1/odometry", 1, &sim_interface::odometry_sim_callback, this);
+	odometry_sub_ = n_sim.subscribe<nav_msgs::Odometry>("/pelican/odometry_sensor1/odometry", 1, &sim_interface::odometry_sim_callback, this);
 
 
 
@@ -84,8 +84,6 @@ void sim_interface::cmdcallback(const asctec_hl_comm::mav_ctrlConstPtr& cmddata)
 	  posecmd.pose.orientation.w = 1;
 
 	  cmd_sim_pub.publish(posecmd);
-
-
 }
 
 void sim_interface::odometry_sim_callback(const nav_msgs::OdometryConstPtr&  odometrydata){

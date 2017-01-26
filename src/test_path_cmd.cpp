@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   ros::Publisher path_sim_pub = n.advertise<nav_msgs::Path>("positioncmd", 1);    //test only, publish the path information
 
 
-   ros::Rate loop_rate(0.5);
+   ros::Rate loop_rate(0.1);
 
 
   int count = 0;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     std_msgs::String msg;
 
     {
-    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{20,9,10},{1,1,3}};
+    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{20,9,10},{5,1,5}};
 
     	nav_msgs::Path gui_path;
     	geometry_msgs::PoseStamped pose;

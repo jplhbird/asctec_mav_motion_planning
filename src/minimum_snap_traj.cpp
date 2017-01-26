@@ -96,7 +96,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	T_sampling=time_body-time_doby_last;
 	time_doby_last=time_body;
 
-//	T_sampling = 0.05;
+	//T_sampling = 0.05;
 
 
  	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
@@ -118,6 +118,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
 			i_jump_no=30;
+
+			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
 		}
 
 
@@ -202,7 +204,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		asctec_hl_comm::mav_ctrl msg;
 
 		//important, notice the unit and the definition of the coordinate frame:
-		msg.x = P_nom[0];
+		msg.x = P_nom[0];  //must give a value to P_nom, or it will be zero?
 		msg.y = P_nom[1];
 		msg.z = P_nom[2];
 		msg.yaw = gamma_com[2];
@@ -218,6 +220,11 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		ROS_INFO_STREAM("cmd , y: "<<msg.y);
 		ROS_INFO_STREAM("cmd , yaw: "<<msg.yaw);
 		ROS_INFO_STREAM("cmd , z: "<<msg.z);
+
+		ROS_INFO_STREAM("gamma_nom[2]"<<(gamma_nom[2]));
+		ROS_INFO_STREAM("gamma_sen[2]"<<(gamma_sen[2]));
+
+
 	}
 
 }
@@ -299,6 +306,15 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 	x_c = x0+ (xf-x0) * x_tilde;
 
 	return(x_c);
+
+
+	ROS_INFO_STREAM("t0"<<(t0));
+	ROS_INFO_STREAM("alpha"<<(alpha));
+	ROS_INFO_STREAM("xo"<<(x0));
+	ROS_INFO_STREAM("xf"<<(xf));
+	ROS_INFO_STREAM("time"<<(time));
+
+
 }
 
 
@@ -384,6 +400,9 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		//commanded yaw angle, unit is in rad:
 		yaw_mapcruise[i]=gamma_temp[2];
 
+		ROS_INFO_STREAM("yaw_mapcruise[i])"<<(yaw_mapcruise[i]));
+		ROS_INFO_STREAM("points_mapcruise[2][i])"<<(points_mapcruise[2][i]));
+
 		//commanded speed, should be adjusted according to the actual situation
 		velocity_mapcruise[i]=1;
 	}
@@ -397,7 +416,6 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	{
 		time_current[i]=0.0f;
 	}
-
 
 	asctec_mav_motion_planning::flag_cmd flag_topic;
 	flag_topic.flag=1; //1: position is give by PC, 2: position is give by RC transmitter
@@ -416,8 +434,17 @@ void Minimumsnap::rotate_yaw_mapcruise(int i)
 
 	//rotate the yaw angle to the set angle: yaw_mapcruise[i]
 
-	gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
-	*0.1745f* T_sampling;  //10deg/s ,
+	if(yaw_mapcruise[i] > (yaw_6DOF_init+0.01))
+	{
+		gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
+		*0.1745f* T_sampling;  //10deg/s ,
+	}
+	else if(yaw_mapcruise[i] < (yaw_6DOF_init-0.01))
+	{
+		gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
+		*0.1745f* T_sampling;  //10deg/s ,
+	}
+
 	gamma_com[2] = gamma_nom[2];
 
 	//time_body =time_body+T_sampling;
@@ -441,6 +468,10 @@ void Minimumsnap::reset_yaw_control(void)
 	P_ini_cruise[0]= P_sen[0];
 	P_ini_cruise[1]= P_sen[1];
 	P_ini_cruise[2]= P_sen[2];
+
+	P_nom[0] = P_sen[0];
+	P_nom[1] = P_sen[1];
+	P_nom[2] = P_sen[2];
 
 	//below, record the current tracking error in the control, in planning, it may not be used:
 /*
