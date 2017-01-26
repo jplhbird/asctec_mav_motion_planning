@@ -23,7 +23,7 @@ Minimumsnap::Minimumsnap()
 	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
 
 	//the topic name is still under discussion, from the SLAM module
-	pose_sub_ = nh_minsnap.subscribe("pose", 1, &Minimumsnap::poseCallback, this);
+	pose_sub_ = nh_minsnap.subscribe("posefromslam", 1, &Minimumsnap::poseCallback, this);
 
 	//the topic name is still under discussion:
 	cmd_sub_ = nh_minsnap.subscribe<nav_msgs::Path>("positioncmd", 1, &Minimumsnap::cmdCallback, this);
@@ -63,7 +63,7 @@ Minimumsnap::Minimumsnap()
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source=1;
+    flag_pose_source=2;
 
 }
 
@@ -90,21 +90,25 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	}
 
 
+	//notice T_sampling, very important:
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 	time_body =((double)(ts_usec-begin_init.time))/1.0e6;  //actual time used in calculation
 	T_sampling=time_body-time_doby_last;
 	time_doby_last=time_body;
 
+//	T_sampling = 0.05;
+
 
  	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+// 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 	//map cruise trajectory, the trajectory follows minimum snap
 	//use the following function:
 	//trajectory planning of a strait line from start point to end point, minimum snap trajectory
 	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
  	if (flag_pc_cmd==1)
-	{
+ 	{
+ 		ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 		//record the yaw angle at the beginning of each line:
 		if (i_jump_no==20)
 		{
@@ -208,6 +212,12 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		msg.v_max_z= 5;
 
 		taj_pub.publish(msg);
+
+		//show it in terminal:
+		ROS_INFO_STREAM("cmd , x: "<<msg.x);
+		ROS_INFO_STREAM("cmd , y: "<<msg.y);
+		ROS_INFO_STREAM("cmd , yaw: "<<msg.yaw);
+		ROS_INFO_STREAM("cmd , z: "<<msg.z);
 	}
 
 }
@@ -375,7 +385,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		yaw_mapcruise[i]=gamma_temp[2];
 
 		//commanded speed, should be adjusted according to the actual situation
-		velocity_mapcruise[i]=20;
+		velocity_mapcruise[i]=1;
 	}
 
 
@@ -394,6 +404,8 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	flag_cmd_pub.publish(flag_topic);
 
 	flag_pc_cmd=1; //activate the flag determine the computer sends the commands,
+
+	ROS_INFO_STREAM("received path commands, flag_pc_cmd is set to)"<<(flag_pc_cmd));
 
 }
 

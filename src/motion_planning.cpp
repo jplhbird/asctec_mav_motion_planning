@@ -72,7 +72,7 @@ pnh_("~/fcu")
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source = 1;
+    flag_pose_source = 2;
 
 
     //initialize the commands:
@@ -141,11 +141,9 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 
 	if (flag_pose_source==1) //outdoor, velocity
 	{
-
 		state_feedback.pose.position.z= imudata->height;
 		state_feedback.velocity.z=imudata->differential_height;
 		state_feedback.pose.orientation =imudata->orientation;
-
 	}
 
 	//publish the external state for position control purpose
@@ -186,10 +184,14 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	double time_body;
 	double T_sampling;
 
+
+	//notice T_sampling, very important:
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 	time_body =(double)(ts_usec-time)/1.0e6;  //actual time used in calculation
-	T_sampling=time_body-time_doby_last;
-	time_doby_last=time_body;
+	T_sampling = time_body-time_doby_last;
+	time_doby_last = time_body;
+
+	T_sampling = 0.05;
 
  	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
  	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
@@ -243,8 +245,8 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 			//unit:m/s
-			global_position_cmd.v_max_xy = 1;
-			global_position_cmd.v_max_z= 1;
+			global_position_cmd.v_max_xy = 5;
+			global_position_cmd.v_max_z= 5;
 		}
 
 		msg = global_position_cmd;
@@ -261,11 +263,16 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		//in GPS environment, the following function is used:
 		TeleopIMU::LLP_Euclidean(LLA);
 
+		//record the initial time
+		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	}
+
+	if (((rcdata->channel[5])<4000) | (flag_rc_cmd != 1))
+	{
+
 		global_position_cmd.x = state_feedback.pose.position.x;
 		global_position_cmd.y = state_feedback.pose.position.y;
 		global_position_cmd.z = state_feedback.pose.position.z;
-
-
 
 		//below, get the yaw angle
 		double quaternion[4];
@@ -284,45 +291,23 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
         //ENU frame, in rad
 		global_position_cmd.yaw = (float)gamma_temp[2];
-
-
-		//record the initial time
-		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
-
 	}
 
 
-//	ROS_INFO_STREAM("k_stick: "<< k_stick_);
-//
-//	ROS_INFO_STREAM("k_stick_yaw: "<< k_stick_yaw_);
-//
-//	ROS_INFO_STREAM("channel 0: "<<(rcdata->channel[0]));
-//	ROS_INFO_STREAM("channel 1: "<<(rcdata->channel[1]));
-//	ROS_INFO_STREAM("channel 2: "<<(rcdata->channel[2]));
-//	ROS_INFO_STREAM("channel 3: "<<(rcdata->channel[3]));
-//	ROS_INFO_STREAM("channel 4: "<<(rcdata->channel[4]));
-//	ROS_INFO_STREAM("channel 5: "<<(rcdata->channel[5]));
-//	ROS_INFO_STREAM("channel 6: "<<(rcdata->channel[6]));
-//
-	ROS_INFO_STREAM("cmd , x: "<<msg.x);
-	ROS_INFO_STREAM("cmd  , y: "<<msg.y);
-	ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
-	ROS_INFO_STREAM("cmd  , z: "<<msg.z);
+	if (flag_rc_cmd == 1)
+	{
+		//only receive the commands from RC transmitter
+		ROS_INFO_STREAM("cmd , x: "<<msg.x);
+		ROS_INFO_STREAM("cmd  , y: "<<msg.y);
+		ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
+		ROS_INFO_STREAM("cmd  , z: "<<msg.z);
+		ROS_INFO_STREAM("global_position_cmd  , z: "<<global_position_cmd.z);
+		llcmd_pub_vel.publish(msg);
+	}
 
-
-    llcmd_pub_vel.publish(msg);
     ext_state.publish(state_feedback);
 
     rcdata_last = *rcdata; //record the rcdata of last time
-
-
-//	ROS_INFO_STREAM("channel 0 record: "<<(rcdata_last.channel[0]));
-//	ROS_INFO_STREAM("channel 1 record: "<<(rcdata_last.channel[1]));
-//	ROS_INFO_STREAM("channel 2 record: "<<(rcdata_last.channel[2]));
-//	ROS_INFO_STREAM("channel 3 record: "<<(rcdata_last.channel[3]));
-//	ROS_INFO_STREAM("channel 4 record: "<<(rcdata_last.channel[4]));
-//	ROS_INFO_STREAM("channel 5 record: "<<(rcdata_last.channel[5]));
-//	ROS_INFO_STREAM("channel 6 record: "<<(LLA_0));
 
 }
 

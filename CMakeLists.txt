@@ -246,6 +246,11 @@ target_link_libraries(sim_interface ${catkin_LIBRARIES})
 # add_dependencies(sim_interface asctec_mav_motion_planning_generate_messages_cpp)
 add_dependencies(sim_interface ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+add_executable(test_path_cmd ${ASCTEC_MAV_MOTION_PLANNING_SRC} src/test_path_cmd.cpp)
+target_link_libraries(test_path_cmd ${catkin_LIBRARIES})
+# add_dependencies(test_path_cmd asctec_mav_motion_planning_generate_messages_cpp)
+add_dependencies(test_path_cmd ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
 
 # make sure configure headers are built before any node using them
 add_dependencies(sim_interface ${PROJECT_NAME}_gencfg)

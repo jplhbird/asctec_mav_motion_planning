@@ -52,6 +52,8 @@ class sim_interface{
 public:
 	sim_interface();
 	~sim_interface();
+
+	ros::Publisher path_sim_pub; //test only, publish the path information
 private:
 
     void cmdcallback(const asctec_hl_comm::mav_ctrlConstPtr& cmddata);
@@ -65,6 +67,8 @@ private:
     ros::Publisher pose_pub_;  //simulate the pose from slam module
     ros::Publisher odometry_pub_;  //simulate the pose from slam module
     ros::Publisher cmd_sim_pub;  //pose cmd to the simulator UAV
+
+
 
 
     ros::Subscriber cmd_asctec; //subscribe the commands to asctec
