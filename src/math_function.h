@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MATH_FUNCTION_H_
 
 #include "minimum_snap_traj.h"
+#include <math.h>
 
 
 namespace math_function{
@@ -112,7 +113,6 @@ inline void RtoEulerangle(double *r, double *angle){
 	R[2][1]=*(r+7);
 	R[2][2]=*(r+8);
 
-
 	ea_m[0]= atan(R[2][1]/R[2][2]);
 	ea_m[1]= -asin(R[2][0]);
 	ea_m[2]= atan(R[1][0]/R[0][0]);  //main Euler angles
@@ -156,7 +156,87 @@ inline void RtoEulerangle(double *r, double *angle){
 	*(angle+2) = psi;
 }
 
+
+
+inline void computeR(double *gamma, double *R)  {
+	//compute rotation matrix from Euler angles
+	double phi, theta, psi;
+
+//	R=[cos(theta)*cos(psi),sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi),cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);...
+//  cos(theta)*sin(psi),sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi),cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi);...
+//  -sin(theta),sin(phi)*cos(theta),cos(phi)*cos(theta)];
+
+	phi=*gamma;
+	theta=*(gamma+1);
+	psi=*(gamma+2);
+
+	*R=cos(theta)*cos(psi);
+	*(R+1) = sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi);
+	*(R+2)= cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);
+
+	*(R+3)= cos(theta)*sin(psi);
+	*(R+4)= sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi);
+	*(R+5) = cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi);
+
+	*(R+6) = -sin(theta);
+	*(R+7) = sin(phi)*cos(theta);
+	*(R+8) = cos(phi)*cos(theta);
 }
+
+
+
+inline void computequaternion(double *r, double *q){
+	//compute the quaternion q from rotation matrix R,
+	int i;
+	double R[3][3];
+	double theta_xi;
+	double omega_xi[3];
+	double ec[3];
+	double pi=3.14159265359;
+	double pi_least=3.14159265359;
+
+	R[0][0]=*r;
+	R[0][1]=*(r+1);
+	R[0][2]=*(r+2);
+	R[1][0]=*(r+3);
+	R[1][1]=*(r+4);
+	R[1][2]=*(r+5);
+	R[2][0]=*(r+6);
+	R[2][1]=*(r+7);
+	R[2][2]=*(r+8);
+
+	//eigen-angle:
+ 	theta_xi = acos((R[0][0]+ R[1][1]+R[2][2]-1.0)/2.0);
+
+	if ((theta_xi!=0))
+	{//small conditions, simple calculate:
+		//the eigen-axis of the rotation matrix:
+		omega_xi[0]=1.0/(2.0*sin(theta_xi))*(R[2][1] - R[1][2]);
+		omega_xi[1]=1.0/(2.0*sin(theta_xi))*(R[0][2] - R[2][0]);
+		omega_xi[2]=1.0/(2.0*sin(theta_xi))*(R[1][0] - R[0][1]);
+
+		//exponential coordinates:
+		for(i=0;i<3;i++)
+		{
+			ec[i]=omega_xi[i]*theta_xi;
+		}
+	}
+	else
+	{
+		omega_xi[0]=0;
+		omega_xi[1]=0;
+		omega_xi[2]=1;
+	}
+
+	//quaternion
+	*q=cos(theta_xi/2.0);
+	*(q+1)=sin(theta_xi/2.0)*omega_xi[0];
+	*(q+2)=sin(theta_xi/2.0)*omega_xi[1];
+	*(q+3)=sin(theta_xi/2.0)*omega_xi[2];
+}
+
+}
+
 
 
 #endif /* MATH_FUNCTION_H_ */

@@ -120,6 +120,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			i_jump_no=30;
 
 			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
+			ROS_INFO_STREAM("yaw_6DOF_init[i]"<<(yaw_6DOF_init));
 		}
 
 
@@ -128,6 +129,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			//rotate the yaw angle to the set angle:
 			rotate_yaw_mapcruise(current_point);
 			//i_jump_no=40;
+			ROS_INFO_STREAM("rotate_yaw_mapcruise");
+
 		}
 
 		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
@@ -196,6 +199,10 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 				flag_cmd_pub.publish(flag_topic);
 
 				flag_pc_cmd=0;
+				time_body =0;
+				time_doby_last=0;
+
+
 			}
 
 			//time_body =time_body+T_sampling;
@@ -398,10 +405,21 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 //		gamma_temp[2]= -gamma_temp[2];
 
 		//commanded yaw angle, unit is in rad:
-		yaw_mapcruise[i]=gamma_temp[2];
+		yaw_mapcruise[i]=(float)gamma_temp[2];
 
 		ROS_INFO_STREAM("yaw_mapcruise[i])"<<(yaw_mapcruise[i]));
 		ROS_INFO_STREAM("points_mapcruise[2][i])"<<(points_mapcruise[2][i]));
+
+		printf( "planned quaternion = [ %e, %e, %e, %e ]\n\n",
+				wp.orientation.x,wp.orientation.y, wp.orientation.z, wp.orientation.w);
+
+		printf( "planned quaternion = [ %e, %e, %e, %e ]\n\n",
+				quaternion[0],quaternion[1], quaternion[2], quaternion[3]);
+
+		printf( "planned matrix = [ %e, %e, %e, %e, %e, %e, %e, %e, %e ]\n\n",
+				R_temp[0], R_temp[1], R_temp[2], R_temp[3], R_temp[4], R_temp[5], R_temp[6], R_temp[7], R_temp[8]);
+
+		printf( "planned Euler angles = [ %e, %e, %e]\n\n",gamma_temp[0], gamma_temp[1], gamma_temp[2]);
 
 		//commanded speed, should be adjusted according to the actual situation
 		velocity_mapcruise[i]=1;
@@ -422,6 +440,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 	flag_cmd_pub.publish(flag_topic);
 
 	flag_pc_cmd=1; //activate the flag determine the computer sends the commands,
+	time_doby_last=0;
 
 	ROS_INFO_STREAM("received path commands, flag_pc_cmd is set to)"<<(flag_pc_cmd));
 
@@ -434,16 +453,17 @@ void Minimumsnap::rotate_yaw_mapcruise(int i)
 
 	//rotate the yaw angle to the set angle: yaw_mapcruise[i]
 
-	if(yaw_mapcruise[i] > (yaw_6DOF_init+0.01))
+	if(yaw_mapcruise[i] > (yaw_6DOF_init+0.001))
 	{
-		gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
-		*0.1745f* T_sampling;  //10deg/s ,
+		gamma_nom[2]= gamma_nom[2] + 0.1745* T_sampling;  //10deg/s ,
 	}
-	else if(yaw_mapcruise[i] < (yaw_6DOF_init-0.01))
+	else if(yaw_mapcruise[i] < (yaw_6DOF_init-0.001))
 	{
-		gamma_nom[2]= gamma_nom[2] + (yaw_mapcruise[i]-yaw_6DOF_init)/abs(yaw_mapcruise[i]-yaw_6DOF_init)
-		*0.1745f* T_sampling;  //10deg/s ,
+		gamma_nom[2]= gamma_nom[2] - 0.1745* T_sampling;  //10deg/s ,
 	}
+
+
+//	gamma_nom[2]= gamma_nom[2] + 0.1745* T_sampling;
 
 	gamma_com[2] = gamma_nom[2];
 

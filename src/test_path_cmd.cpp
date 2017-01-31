@@ -62,7 +62,8 @@ int main(int argc, char **argv)
     std_msgs::String msg;
 
     {
-    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{20,9,10},{5,1,5}};
+    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{18,7,9},{5,1,4}};
+    	float yawcmd[5] = {1,1.2,1.6,0,-1};
 
     	nav_msgs::Path gui_path;
     	geometry_msgs::PoseStamped pose;
@@ -71,11 +72,55 @@ int main(int argc, char **argv)
 			  pose.pose.position.x = cmdp[i][0];
 			  pose.pose.position.y = cmdp[i][1];
 			  pose.pose.position.z = cmdp[i][2];
-			  pose.pose.orientation.x = 0.0;
-			  pose.pose.orientation.y = 0.0;
-			  pose.pose.orientation.z = 0.0;
-			  pose.pose.orientation.w = 1.0;
+
+			  //quaternion, note the order
+			  double ea[3]={0,0,0};
+			  ea[2]=yawcmd[i];
+
+			  double R_temp[9];
+			  double quaternion[4];
+			  math_function::computeR(&ea[0], &R_temp[0]);
+			  math_function::computequaternion(&R_temp[0], &quaternion[0]);
+
+			  pose.pose.orientation.x = quaternion[1];
+			  pose.pose.orientation.y = quaternion[2];
+			  pose.pose.orientation.z = quaternion[3];
+			  pose.pose.orientation.w = quaternion[0];
 			  plan.push_back(pose);
+
+
+
+
+				printf( "planned yaw = [ %e, %e, %e ]\n\n",
+						ea[0],ea[1],ea[2]);
+
+				printf( "planned matrix = [ %e, %e, %e, %e, %e, %e, %e, %e, %e ]\n\n",
+						R_temp[0], R_temp[1], R_temp[2], R_temp[3], R_temp[4], R_temp[5], R_temp[6], R_temp[7], R_temp[8]);
+
+				printf( "planned quaternion = [ %e, %e, %e, %e ]\n\n",
+										pose.pose.orientation.x,pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w);
+
+
+
+//				//quaternion[0] = cos(0.5); quaternion[1]= sin(0.5)*0; quaternion[2]= sin(0.5)*0; quaternion[3]= sin(0.5);
+//				math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+//				math_function::RtoEulerangle(&R_temp[0], &ea[0]);
+//
+//
+//				printf( "planned quaternion reverse = [ %e, %e, %e, %e ]\n\n",
+//						quaternion[0],quaternion[1], quaternion[2], quaternion[3]);
+//
+//
+//				printf( "planned matrix reverse = [ %e, %e, %e, %e, %e, %e, %e, %e, %e ]\n\n",
+//						R_temp[0], R_temp[1], R_temp[2], R_temp[3], R_temp[4], R_temp[5], R_temp[6], R_temp[7], R_temp[8]);
+//
+//
+//				printf( "planned yaw reverse = [ %e, %e, %e ]\n\n",
+//						ea[0],ea[1],ea[2]);
+
+
+
+
 			}
 
 		gui_path.poses.resize(plan.size());
@@ -93,6 +138,7 @@ int main(int argc, char **argv)
 
 		path_sim_pub.publish(gui_path);
 		ROS_INFO_STREAM("send path points");
+
     }
 
 
@@ -100,6 +146,11 @@ int main(int argc, char **argv)
     loop_rate.sleep();
 
     ++count;
+
+    if(count >=2)
+    	break;
+
+
   }
 
 

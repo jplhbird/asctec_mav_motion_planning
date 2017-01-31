@@ -28,36 +28,36 @@ sim_interface::sim_interface(){
 
 
 
-    {
-	 nav_msgs::Path gui_path;
-	  geometry_msgs::PoseStamped pose;
-	  std::vector<geometry_msgs::PoseStamped> plan;
-	for (int i=0; i<5; i++){
-	      pose.pose.position.x = i;
-	      pose.pose.position.y = -i;
-	      pose.pose.position.z = i;
-	      pose.pose.orientation.x = 0.0;
-	      pose.pose.orientation.y = 0.0;
-	      pose.pose.orientation.z = 0.0;
-	      pose.pose.orientation.w = 1.0;
-	      plan.push_back(pose);
-	    }
-
-	gui_path.poses.resize(plan.size());
-
-	if(!plan.empty()){
-	      gui_path.header.frame_id = 'test';
-	      gui_path.header.stamp = plan[0].header.stamp;
-	}
-
-	for(unsigned int i=0; i < plan.size(); i++){
-	      gui_path.poses[i] = plan[i];
-	}
-
-
-	path_sim_pub.publish(gui_path);
-	ROS_INFO_STREAM("send path points");
-    }
+//    {
+//	 nav_msgs::Path gui_path;
+//	  geometry_msgs::PoseStamped pose;
+//	  std::vector<geometry_msgs::PoseStamped> plan;
+//	for (int i=0; i<5; i++){
+//	      pose.pose.position.x = i;
+//	      pose.pose.position.y = -i;
+//	      pose.pose.position.z = i;
+//	      pose.pose.orientation.x = 0.0;
+//	      pose.pose.orientation.y = 0.0;
+//	      pose.pose.orientation.z = 0.0;
+//	      pose.pose.orientation.w = 1.0;
+//	      plan.push_back(pose);
+//	    }
+//
+//	gui_path.poses.resize(plan.size());
+//
+//	if(!plan.empty()){
+//	      gui_path.header.frame_id = 'test';
+//	      gui_path.header.stamp = plan[0].header.stamp;
+//	}
+//
+//	for(unsigned int i=0; i < plan.size(); i++){
+//	      gui_path.poses[i] = plan[i];
+//	}
+//
+//
+//	path_sim_pub.publish(gui_path);
+//	ROS_INFO_STREAM("send path points");
+//    }
 
 }
 
@@ -78,10 +78,23 @@ void sim_interface::cmdcallback(const asctec_hl_comm::mav_ctrlConstPtr& cmddata)
 	  posecmd.pose.position.y = cmddata->y;
 	  posecmd.pose.position.z = cmddata->z;
 
-	  posecmd.pose.orientation.x = 0;
-	  posecmd.pose.orientation.y = 0;
-	  posecmd.pose.orientation.z = 0;
-	  posecmd.pose.orientation.w = 1;
+
+	  double R_temp[9];
+	  double ea[3]={0,0,0};
+	  double quaternion[4];
+
+	  ea[2]=cmddata->yaw;
+
+	  math_function::computeR(&ea[0], &R_temp[0]);
+	  math_function::computequaternion(&R_temp[0], &quaternion[0]);
+
+	  posecmd.pose.orientation.x = quaternion[1];
+	  posecmd.pose.orientation.y = quaternion[2];
+	  posecmd.pose.orientation.z = quaternion[3];
+	  posecmd.pose.orientation.w = quaternion[0];
+
+	  printf( "planned quaternion = [ %e, %e, %e, %e ]\n\n",
+			  posecmd.pose.orientation.x,posecmd.pose.orientation.y, posecmd.pose.orientation.z, posecmd.pose.orientation.w);
 
 	  cmd_sim_pub.publish(posecmd);
 }
@@ -124,45 +137,6 @@ int main(int argc, char **argv)
  //   ros::NodeHandle nh("motion_mav");
 
     sim_interface sim_asctec;
-
-
-//    ros::Rate loop_rate(0.1);
-//    	while(ros::ok())
-//    {
-//	 nav_msgs::Path gui_path;
-//	  geometry_msgs::PoseStamped pose;
-//	  std::vector<geometry_msgs::PoseStamped> plan;
-//	for (int i=0; i<5; i++){
-//	      pose.pose.position.x = i;
-//	      pose.pose.position.y = -i;
-//	      pose.pose.position.z = i;
-//	      pose.pose.orientation.x = 0.0;
-//	      pose.pose.orientation.y = 0.0;
-//	      pose.pose.orientation.z = 0.0;
-//	      pose.pose.orientation.w = 1.0;
-//	      plan.push_back(pose);
-//	    }
-//
-//	gui_path.poses.resize(plan.size());
-//
-//	if(!plan.empty()){
-//	      gui_path.header.frame_id = 'test';
-//	      gui_path.header.stamp = plan[0].header.stamp;
-//	}
-//
-//	for(unsigned int i=0; i < plan.size(); i++){
-//	      gui_path.poses[i] = plan[i];
-//	}
-//
-//
-//	sim_asctec.path_sim_pub.publish(gui_path);
-//	ROS_INFO_STREAM("send path points");
-//
-//	loop_rate.sleep();
-//    }
-
-
-
     ros::spin();
 
 }
