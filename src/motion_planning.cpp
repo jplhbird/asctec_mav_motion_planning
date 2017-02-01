@@ -20,13 +20,9 @@ pnh_("~/fcu")
 
     llcmd_pub_acc = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_inteface
    // llcmb_pubrate.Rate(20);//20HZ
-
     llcmd_pub_vel = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
-
     ext_state=n.advertise<sensor_fusion_comm::ExtState>("fcu/state", 1); //external state, to interface of asctec
-
     pub2=n.advertise<geometry_msgs::PoseStamped>("command/pose",1); //command to quadrotor
-
     pub3 = n.advertise<geometry_msgs::TwistStamped>("command/twist",1); //velocity command to quadrotor
 
 	//publish gps position and velocity information:
@@ -43,13 +39,9 @@ pnh_("~/fcu")
 
 	//the topic name is still under discussion, from the SLAM module
 	odometry_sub_ = n.subscribe<nav_msgs::Odometry>("odometryfromslam", 1, &TeleopIMU::odometryCallback, this);
-
 	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
-
 	gps_custom_sub_ =n.subscribe<asctec_hl_comm::GpsCustom> ("fcu/gps_custom", 1, &TeleopIMU::gpsdataCallback, this);
-
 	imu_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
-
 	flag_cmd_sub = n.subscribe<asctec_mav_motion_planning::flag_cmd>("flag_cmd", 1, &TeleopIMU::flagcmdCallback, this); //flag determine which device will sends the position cmd
 
 
@@ -318,15 +310,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
 {
     geometry_msgs::Twist vel;
-//    geometry_msgs/Vector3 linear
-//      float64 x
-//      float64 y
-//      float64 z
-//    geometry_msgs/Vector3 angular
-//      float64 x
-//      float64 y
-//      float64 z
- //   '[2.0, 0.0, 0.0]' '[0.0, 0.0, 1.8]'
+
 
     vel.linear.x = imu->angular_velocity.x;
     vel.linear.y = imu->angular_velocity.y;
@@ -343,20 +327,6 @@ void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
     //added on October, 10, 2016
     //the message is command to the simulated quadrotor in gazebo
     geometry_msgs::PoseStamped postoquadrotor;
-//    std_msgs/Header header
-//      uint32 seq
-//      time stamp
-//      string frame_id
-//    geometry_msgs/Pose pose
-//      geometry_msgs/Point position
-//        float64 x
-//        float64 y
-//        float64 z
-//      geometry_msgs/Quaternion orientation
-//        float64 x
-//        float64 y
-//        float64 z
-//        float64 w
 
     postoquadrotor.pose.position.x = 1;
     postoquadrotor.pose.position.y=1;
@@ -370,27 +340,10 @@ void TeleopIMU::callBack(const sensor_msgs::Imu::ConstPtr& imu)
    // postoquadrotor.header.frame_id = imu->header.frame_id;
     postoquadrotor.header.frame_id  =   "world";
 
-
-
     //publish the massege
     pub2.publish(postoquadrotor);
 
-
-
     geometry_msgs::TwistStamped velquadrotor;
-//    std_msgs/Header header
-//      uint32 seq
-//      time stamp
-//      string frame_id
-//    geometry_msgs/Twist twist
-//      geometry_msgs/Vector3 linear
-//        float64 x
-//        float64 y
-//        float64 z
-//      geometry_msgs/Vector3 angular
-//        float64 x
-//        float64 y
-//        float64 z
 
     velquadrotor.header.frame_id ="world";
     velquadrotor.header.stamp =imu->header.stamp;
@@ -457,10 +410,9 @@ void TeleopIMU::send_acc_ctrl(void){
 
     while (ros::ok()){
     	llcmd_pub_acc.publish(msg);
-    	//ROS_INFO(msg);
+
     	ros::spinOnce();
-    //	llcmb_pubrate.sleep();
-    	  // %EndTag(RATE_SLEEP)%
+
     }
 }
 
@@ -568,8 +520,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("motion_mav");
 
     TeleopIMU teopuav;
-
- //   Minimumsnap minimumfun;
 
     ros::spin();
 

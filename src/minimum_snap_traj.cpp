@@ -114,9 +114,9 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		{
 			reset_yaw_control();
 			//time need to rotate:
-			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
 
-			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745f;
+			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
 			i_jump_no=30;
 
 			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
@@ -133,7 +133,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 		}
 
-		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2))
+		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2.0))
 		{
 								//time need to line:
 			timearray__mapcruise[2*current_point+1]= time_body+
@@ -159,7 +159,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 
 		//line:
-		if ((time_body>time_current[0]+2)&& (time_body<=time_current[2]) && (i_jump_no==50))
+		if ((time_body>time_current[0]+2.0)&& (time_body<=time_current[2]) && (i_jump_no==50))
 		{
 			int j;
 			//minimum snap trajectory:
@@ -174,10 +174,10 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			//i_jump_no=100;
 		}
 
-		if ((time_body>time_current[2])&& (time_body<=5.0f+time_current[2]) && (i_jump_no==50))
+		if ((time_body>time_current[2])&& (time_body<=5.0+time_current[2]) && (i_jump_no==50))
 		{
 			//hold on:
-			if((time_body>=4.8f+time_current[2])&&(i_jump_no==50))
+			if((time_body>=4.8+time_current[2])&&(i_jump_no==50))
 			{
 				//next line:
 				current_point++;
