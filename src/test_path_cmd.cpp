@@ -47,6 +47,8 @@
 int main(int argc, char **argv)
 {
 
+	//test the motion planning module
+
   ros::init(argc, argv, "test_path_cmd");
 
   ros::NodeHandle n;
@@ -87,8 +89,6 @@ int main(int argc, char **argv)
 			  pose.pose.orientation.z = quaternion[3];
 			  pose.pose.orientation.w = quaternion[0];
 			  plan.push_back(pose);
-
-
 
 
 				printf( "planned yaw = [ %e, %e, %e ]\n\n",
