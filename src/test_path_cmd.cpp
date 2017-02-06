@@ -64,8 +64,11 @@ int main(int argc, char **argv)
     std_msgs::String msg;
 
     {
-    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{9,7,2},{5,1,4}};
-    	float yawcmd[5] = {1,1.2,1.6,0,-1};
+//    	float cmdp[5][3]={{1,1,3},{3,5,6},{8,7,2},{9,7,2},{5,1,4}};
+//    	float yawcmd[5] = {1,1.2,1.6,0,-1};
+
+    	float cmdp[5][3]={{1,1,3},{110,1,3},{8,7,2},{9,7,2},{5,1,4}};
+    	float yawcmd[5] = {0,0,0,0,0};
 
     	nav_msgs::Path gui_path;
     	geometry_msgs::PoseStamped pose;

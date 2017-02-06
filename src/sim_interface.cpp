@@ -121,7 +121,7 @@ void sim_interface::odometry_sim_callback(const nav_msgs::OdometryConstPtr&  odo
  //simulate the rcdata
 	rcdata.channel[0]= 2047;
 	rcdata.channel[1]= 2047;
-	rcdata.channel[2]= 2100;
+	rcdata.channel[2]= 2200;
 	rcdata.channel[3]= 2047;
 	rcdata.channel[4]= 4095;
 	rcdata.channel[5]= 4095;

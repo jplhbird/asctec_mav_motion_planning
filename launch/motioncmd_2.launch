@@ -1,5 +1,6 @@
 <launch>
-    <node name="minimum_snap" pkg="asctec_mav_motion_planning" type="asctec_mav_motion_planning" output="screen"/>
-    <node name="motion_mav" pkg="asctec_mav_motion_planning" type="asctec_mav_motion_planning" output="screen"/>
+    <node name="minimum_snap" pkg="asctec_mav_motion_planning" type="minimum_snap" output="screen"/>
+    <node name="motion_mav" pkg="asctec_mav_motion_planning" type="motion_mav" output="screen"/>
+    <node name="sim_interface" pkg="asctec_mav_motion_planning" type="sim_interface" output="screen"/>s
 
 </launch>
