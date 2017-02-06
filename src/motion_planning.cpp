@@ -488,7 +488,7 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 	{
 		state_feedback.pose.position.x = P_sen[0];
 		state_feedback.pose.position.y = -P_sen[1];
-		state_feedback.pose.position.z = -P_sen[2];
+		//state_feedback.pose.position.z = -P_sen[2];
 	}
 
 }
