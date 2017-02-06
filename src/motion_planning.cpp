@@ -64,7 +64,7 @@ pnh_("~/fcu")
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source = 2;
+    flag_pose_source = 1;
 
 
     //initialize the commands:
@@ -280,6 +280,10 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
 		//ENU frame
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		ROS_INFO_STREAM("feedback roll/degree"<<gamma_temp[0]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback pitch/degree"<<gamma_temp[1]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback yaw/degree"<<gamma_temp[2]/3.14159265*180.0);
 
         //ENU frame, in rad
 		global_position_cmd.yaw = (float)gamma_temp[2];
