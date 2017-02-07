@@ -63,7 +63,7 @@ Minimumsnap::Minimumsnap()
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source=2;
+    flag_pose_source = 1;
 
 }
 
