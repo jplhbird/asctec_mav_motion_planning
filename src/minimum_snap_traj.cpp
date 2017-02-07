@@ -63,7 +63,7 @@ Minimumsnap::Minimumsnap()
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source=1;
+    flag_pose_source=2;
 
 }
 
@@ -338,8 +338,6 @@ void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 		P_sen[0]=pose->position.x;
 		P_sen[1]=pose->position.y;
 		P_sen[2]=pose->position.z;
-
-
     }
 
 }

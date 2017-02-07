@@ -64,7 +64,7 @@ pnh_("~/fcu")
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source = 1;
+    flag_pose_source = 2;
 
 
     //initialize the commands:
@@ -102,8 +102,8 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 
 
 // gpsdata:
-	LLA[0]= gpsdata->latitude;
-	LLA[1]= gpsdata->longitude;
+	LLA[0]= (gpsdata->latitude)/180.0*M_PI;
+	LLA[1]= (gpsdata->longitude)/180.0*M_PI;
 	LLA[2]= gpsdata->altitude;
 
 	TeleopIMU::LLP_Euclidean(LLA);
