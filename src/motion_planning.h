@@ -157,6 +157,95 @@ private:
     asctec_mav_motion_planning::motion_planning_paraConfig config_motion;
 
 
+    //added on Feb., 2016, position control
+    void translate_innerloop_controller(void);
+    void translate_outerloop_controller(void);
+    void compute_F_nom(void);
+    void compute_V_nom(void);
+    void compute_gamma_nom(void);
+    double norm_vector(double *p);
+    void cross_vector(double *a1, double *a2, double *result);
+    double dot_product(double *a1, double *a2);
+
+
+	////////////////below, the outer loop of the translational controller////////// added on 27th, September, for 6DOF
+	double Px_nom;
+	double Py_nom;
+	double Pz_nom;
+	double P_nom_filter_m2[3];
+	double P_nom_filter_m1[3];
+	double xi_filter_out_trans[3];  //????
+	double omega_n_filter_out_trans[3];  //????
+	double a_1_out_trans[3];
+	double a_2_out_trans[3];
+	double P_nom[3];
+	double V_nom[3];
+	double V_com[3];
+	double V_ctrl[3];
+	double P_err[3];
+	double P_err_int[3];
+	double P_sen[3];
+	////////////////above, the outer loop of the translational controller///////// added on 27th, September, for 6DOF
+
+	////////////////below, the inner loop of the translational controller//////// added on 27th, September, for 6DOF
+	double Vx_nom;
+	double Vy_nom;
+	double Vz_nom;
+	double V_nom_filter_m2[3];
+	double V_nom_filter_m1[3];
+	double xi_filter_in_trans[3];  //????
+	double omega_n_filter_in_trans[3];  //????
+	double a_1_in_trans[3];
+	double a_2_in_trans[3];
+	double F_nom[3];
+	double F_com[3];
+	double F_ctrl[3];
+	double V_err[3];
+	double V_err_int[3];
+	double V_sen[3];
+	double V_sen_b[3];
+	////////////////above, the inner loop of the translational controller/////// added on 27th, September, for 6DOF
+
+	////////the parameters in the psudo inverse dynamics
+	double ksi_trans_out_x;
+	double ksi_trans_out_y;
+	double ksi_trans_out_z;
+	double omega_trans_out_x;
+	double omega_trans_out_y;
+	double omega_trans_out_z;
+
+	double ksi_trans_in_x;
+	double ksi_trans_in_y;
+	double ksi_trans_in_z;
+	double omega_trans_in_x;
+	double omega_trans_in_y;
+	double omega_trans_in_z;
+
+	//sampling time:
+	double T_sampling;
+	uint16_t time_scale_position;  //the scale of the sampling time of the position time compared to attitude loop
+
+	double m;
+	double g_;
+	double G;
+
+	/////below, the variables used to compute the nominal and commanded Euler angles// added on 27th, September, for 6DOF
+	double gamma_ctrl[3];
+	double gamma_com[3];
+	double gamma_nom[3];
+	double gamma_sen[3];
+	double f_z_com;
+	double yaw_6DOF_init;
+	double Rzb_sens[3];
+	double Fcom_exg[3];
+	double z_b[3];
+	double a_1[3];
+	double y_b[3];
+	double x_b[3];
+	/////above, the variables used to compute the nominal and commanded Euler angles/// added on 27th, September, for 6DOF
+
+
+
 
 };
 

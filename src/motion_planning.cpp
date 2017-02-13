@@ -450,15 +450,10 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 //note the definition of the origin of the NED LLP frame
 {
 	double lla_mit_g[3];
-
 	double lla_mit_g_0[3];
-
-
-	float P_sen[3];  //the position in NED represent
-
+	double P_sen_llp[3];  //the position in NED represent
 	double R_earth=6378140; // 6378140m, the long radius of the earth
 	double e_earth=0.0033539376905456;
-
 	double tempP[3];
 	double Rn, Re;  //Rn is the north direction curve radius, Re is the east direction curve radius
 	int i;
@@ -466,12 +461,8 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 	for(i=0;i<3;i++)
 	{
 		lla_mit_g[i]=LLA(i);
-
 		lla_mit_g_0[i]=LLA_0(i);
-
-
 	}
-
 
 	tempP[0]= 1- e_earth*e_earth * sin(lla_mit_g[0])* sin(lla_mit_g[0]);
 	Rn = R_earth*(1-e_earth*e_earth) / tempP[0]*sqrt(tempP[0]);
@@ -481,13 +472,13 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 	tempP[2]= -(lla_mit_g[2] -lla_mit_g_0[2]);
 	for(i=0; i<3; i++)
 	{
-		P_sen[i]= (float)tempP[i];
+		P_sen_llp[i]= tempP[i];
 	}
 
 	if (flag_pose_source ==1) //outdoor, position, in ENU :
 	{
-		state_feedback.pose.position.x = P_sen[0];
-		state_feedback.pose.position.y = -P_sen[1];
+		state_feedback.pose.position.x = P_sen_llp[0];
+		state_feedback.pose.position.y = -P_sen_llp[1];
 		//state_feedback.pose.position.z = -P_sen[2];
 	}
 
@@ -528,6 +519,290 @@ int main(int argc, char **argv)
     ros::spin();
 
 }
+
+
+
+//added on Feb., 2016, position control
+void TeleopIMU::translate_innerloop_controller(void)
+	 //?????T_sampling
+{
+	int i;
+//	 float ksi_trans_in_x=1.414f;
+//	 float ksi_trans_in_y=1.414f;
+//	 float ksi_trans_in_z=2.828f;
+//	 float omega_trans_in_x=1.0f;
+//	 float omega_trans_in_y=1.0f;
+//	 float omega_trans_in_z=1.0f;
+
+	 double alfa_412;
+	 double alfa_422;
+	 double alfa_432;
+	 double alfa_411;
+	 double alfa_421;
+	 double alfa_431;
+
+	 for(i=0;i<3;i++)
+	 {
+		 V_err[i]=V_com[i]-V_sen[i];
+		 V_err_int[i]=V_err_int[i]+V_err[i]*(T_sampling*time_scale_position);  /*P_err,P_err_int ??????,????0*/
+	 }
+
+	 alfa_412=2*ksi_trans_in_x*omega_trans_in_x;
+	 alfa_422=2*ksi_trans_in_y*omega_trans_in_y;
+	 alfa_432=2*ksi_trans_in_z*omega_trans_in_z;
+	 alfa_411=omega_trans_in_x*omega_trans_in_x;
+	 alfa_421=omega_trans_in_y*omega_trans_in_y;
+	 alfa_431=omega_trans_in_z*omega_trans_in_z;
+
+	 F_ctrl[0] = V_err_int[0]* m * alfa_411 + V_err[0]* m * alfa_412;
+	 F_ctrl[1] = V_err_int[1]* m * alfa_421 + V_err[1]* m * alfa_422;
+	 F_ctrl[2] = V_err_int[2]* m * alfa_431 + V_err[2]* m * alfa_432;
+
+
+	 for(i=0;i<3;i++)
+		 F_com[i]=F_ctrl[i]+F_nom[i];  //command ??????????
+
+	 //F_com[2]= -(G_6dof-G_6dof_init);	 //test mode, do not close the Z position
+	 //if (command_source_flag!=0) //tune the altitude  controller
+	 	//F_com[2]=F_ctrl[2]+F_nom[2];  //command ??????????
+}
+
+
+void TeleopIMU::translate_outerloop_controller(void)
+	 /*control timing is T_sampling*/
+{
+	int i;
+//	 float ksi_trans_out_x=1.414f;
+//	 float ksi_trans_out_y=1.414f;
+//	 float ksi_trans_out_z=2.828f;
+//	 float omega_trans_out_x=0.25f;
+//	 float omega_trans_out_y=0.25f;
+//	 float omega_trans_out_z=0.25f;
+
+	double alfa_312;
+	double alfa_322;
+	double alfa_332;
+	double alfa_311;
+	double alfa_321;
+	double alfa_331;
+
+
+	 for(i=0;i<3;i++)
+	 {
+		 P_err[i]=P_nom[i]-P_sen[i];
+		 P_err_int[i]=P_err_int[i]+P_err[i]*(T_sampling*time_scale_position);  /*P_err,P_err_int ??????,????0*/
+	 }
+
+	 alfa_312=2*ksi_trans_out_x*omega_trans_out_x;
+	 alfa_322=2*ksi_trans_out_y*omega_trans_out_y;
+	 alfa_332=2*ksi_trans_out_z*omega_trans_out_z;
+	 alfa_311=omega_trans_out_x*omega_trans_out_x;
+	 alfa_321=omega_trans_out_y*omega_trans_out_y;
+	 alfa_331=omega_trans_out_z*omega_trans_out_z;
+
+	 V_ctrl[0] = P_err_int[0]*  alfa_311 + P_err[0]* alfa_312;
+	 V_ctrl[1] = P_err_int[1]* alfa_321 + P_err[1]*  alfa_322;
+	 V_ctrl[2] = P_err_int[2]*  alfa_331 + P_err[2]*   alfa_332;
+
+	 for(i=0;i<3;i++)
+		 V_com[i]=V_ctrl[i]+V_nom[i];  /*command ??????????*/
+ }
+
+
+void TeleopIMU::compute_F_nom(void)
+{
+	//T_sampling
+	int i;
+	double d_Vx_nom;
+	double d_Vy_nom;
+	double d_Vz_nom;
+	double Vx_nom_last, Vy_nom_last, Vz_nom_last;
+
+	Vx_nom_last=Vx_nom;
+	Vy_nom_last=Vy_nom;
+	Vz_nom_last=Vz_nom;
+
+	///////filter /////////////
+	for(i=0;i<3;i++)
+	{V_nom_filter_m2[i]=(a_1_in_trans[i]*V_nom[i]-
+	a_1_in_trans[i]*V_nom_filter_m1[i]-a_2_in_trans[i]*V_nom_filter_m2[i])*(T_sampling*time_scale_position)+V_nom_filter_m2[i];
+	V_nom_filter_m1[i]=V_nom_filter_m2[i]*(T_sampling*time_scale_position)+V_nom_filter_m1[i];
+	}
+	//// ////////////
+
+	Vx_nom=V_nom_filter_m1[0];
+	Vy_nom=V_nom_filter_m1[1];
+	Vz_nom=V_nom_filter_m1[2];
+
+	d_Vx_nom=(Vx_nom-Vx_nom_last)/(T_sampling*time_scale_position);
+	d_Vy_nom=(Vy_nom-Vy_nom_last)/(T_sampling*time_scale_position);
+	d_Vz_nom=(Vz_nom-Vz_nom_last)/(T_sampling*time_scale_position);
+
+	F_nom[0]=m*d_Vx_nom;
+	F_nom[1]=m*d_Vy_nom;
+	F_nom[2]=m*d_Vz_nom;
+	//F_nom[0]=0;F_nom[1]=0;F_nom[2]=0;//tuning only
+}
+
+
+void TeleopIMU::compute_V_nom(void)
+{
+	//T_sampling?????
+	int i;
+	double d_Px_nom=0;
+	double d_Py_nom=0;
+	double d_Pz_nom=0; /*??????????????,????*/
+	double Px_nom_last, Py_nom_last, Pz_nom_last;
+
+	Px_nom_last=Px_nom;
+	Py_nom_last=Py_nom;
+	Pz_nom_last=Pz_nom;  /*?????????????,????*/
+
+	/////////????//////////////
+	for(i=0;i<3;i++)
+	{
+		P_nom_filter_m2[i]=(a_1_out_trans[i]*P_nom[i]-a_1_out_trans[i]*P_nom_filter_m1[i]-
+												a_2_out_trans[i]*P_nom_filter_m2[i])*(T_sampling*time_scale_position)+P_nom_filter_m2[i];
+		P_nom_filter_m1[i]=P_nom_filter_m2[i]*(T_sampling*time_scale_position)+P_nom_filter_m1[i];
+	}
+	/////////????//////////////
+
+	Px_nom=P_nom_filter_m1[0];
+	Py_nom=P_nom_filter_m1[1];
+	Pz_nom=P_nom_filter_m1[2];   //the nominal position after filter
+
+	d_Px_nom=(Px_nom-Px_nom_last)/(T_sampling*time_scale_position);
+	d_Py_nom=(Py_nom-Py_nom_last)/(T_sampling*time_scale_position);
+	d_Pz_nom=(Pz_nom-Pz_nom_last)/(T_sampling*time_scale_position);  //????,??????????
+
+	V_nom[0]=d_Px_nom;
+	V_nom[1]=d_Py_nom;
+	V_nom[2]=d_Pz_nom;
+//	V_nom[0]=0;V_nom[1]=0;V_nom[2]=0;//tuning only
+}
+
+
+
+
+void TeleopIMU::compute_gamma_nom(void)
+{
+	 //T_sampling?????
+	int i;
+//	float Fcom_exg[3];
+//	float x_b[3]; //the x axis of the body fixed frame
+//	float y_b[3]; //the y axis of the body fixed frame
+//	float z_b[3]; //the z axis of the body fixed frame
+//	float a_1[3]; //the project vector of the x axis of the body fixed frame on the xy plane of
+//	//earth frame
+	double tempfloat_norm;
+
+	//gamma_nom[2]=yaw_6DOF_init;   //psi can be set to a value if needed
+
+	Rzb_sens[0]=cos(gamma_sen[0])*sin(gamma_sen[1])*cos(gamma_sen[2])+sin(gamma_sen[0])*sin(gamma_sen[2]);
+	Rzb_sens[1]=cos(gamma_sen[0])*sin(gamma_sen[1])*sin(gamma_sen[2])-sin(gamma_sen[0])*cos(gamma_sen[2]);
+	Rzb_sens[2]=cos(gamma_sen[0])*cos(gamma_sen[1]);
+
+	Fcom_exg[0]=F_com[0];
+	Fcom_exg[1]=F_com[1];
+	Fcom_exg[2]=F_com[2]-m*g_;	//F-[0; 0; m*g]
+
+	tempfloat_norm = norm_vector(&Fcom_exg[0]);  // norm(F-[0; 0; m*g]);
+
+	G=-dot_product(&Fcom_exg[0], &Rzb_sens[0]);  //the total thrust commands, G=-(F- [0; 0; m*g] )\cdot Rzb_sens
+	f_z_com = -G;   //the total thrust, G>0
+	//f_z_com<0, the total force gererated by the propellers algong the z direction of body frame
+
+//	f_z_com=-norm_vector(&Fcom_exg[0]);  //T = norm(F-[0; 0; m*g]);
+//    //f_z_com<0, the total force gererated by the propellers algong the z direction of body frame
+//	G = -f_z_com;   //the total thrust, G>0
+
+	for(i=0; i<3; i++)
+	{
+		z_b[i]= 0- Fcom_exg[i] / tempfloat_norm;  //z_b= -(F- [0; 0; m*g] )/ norm( F- [0; 0; m*g]);
+	}
+
+
+	a_1[0]= cos(gamma_nom[2]);
+	a_1[1]= sin(gamma_nom[2]);
+	a_1[2]= 0;   //a_1= [cos(psi); sin(psi); 0];
+
+	//y_b = cross(z_b, a_1) / norm(cross(z_b, a_1));
+	cross_vector(&z_b[0], &a_1[0], &y_b[0]);
+	tempfloat_norm = norm_vector(&y_b[0]);
+	for(i=0; i<3; i++)
+	{
+		y_b[i] = y_b[i] / tempfloat_norm;
+		//y_b[i] = y_b[i];
+	}
+
+	// x_b = cross(y_b, z_b);
+	cross_vector(&y_b[0], &z_b[0], &x_b[0]);
+	tempfloat_norm = norm_vector(&x_b[0]);
+	for(i=0; i<3; i++)
+	{
+		x_b[i] = x_b[i] / tempfloat_norm;
+	}
+
+	gamma_nom[1] = 0- asin(x_b[2]);  // theta = -asin(R(3,1));
+	gamma_nom[0]= asin(y_b[2]/cos(gamma_nom[1])); //phi = asin (R(3,2)/cos_theta);
+
+	for(i=0; i<2; i++)
+	{
+		gamma_com[i]= gamma_nom[i];
+	}
+
+	//in simulation test, in real time, should be commented:
+//	gamma_com[0]=0;
+//	gamma_com[0]=0;
+}
+
+
+double TeleopIMU::norm_vector(double *p)
+{
+	//the norm of a three dimensional vector
+	double y;
+	y= 	sqrt((*p)*(*p)+(*(p+1)) * (*(p+1))+ (*(p+2)) * (*(p+2)));
+	return y;
+}
+
+
+
+void TeleopIMU::cross_vector(double *a1, double *a2, double *result)
+{   // result = a1 \times a2
+	//the   Vector cross product.
+//	 a2*b3 - a3*b2
+// a3*b1 - a1*b3
+// a1*b2 - a2*b1
+	double temp[3];
+	int i;
+	temp[0] = (*(a1+1))* (*(a2+2)) - (*(a1+2))*(*(a2+1));
+	temp[1] = (*(a1+2))* (*(a2+0)) - (*(a1+0))*(*(a2+2));
+	temp[2] = (*(a1+0))* (*(a2+1)) - (*(a1+1))*(*(a2+0));
+	for(i=0; i<3; i++)
+	{
+		*(result+i)= temp[i];
+	}
+}
+
+
+double TeleopIMU::dot_product(double *a1, double *a2)
+{
+	//the   dot product of the two input vectors
+
+	double temp;
+	temp  = (*(a1+0))* (*(a2+0)) + (*(a1+1))*(*(a2+1))+  (*(a1+2))*(*(a2+2));
+
+	return temp;
+}
+
+
+
+
+
+
+
+
+
 
 
 // %EndTag(FULLTEXT)%
