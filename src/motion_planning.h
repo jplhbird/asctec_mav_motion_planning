@@ -166,7 +166,9 @@ private:
     double norm_vector(double *p);
     void cross_vector(double *a1, double *a2, double *result);
     double dot_product(double *a1, double *a2);
-
+    void compute_omega_nom(void);
+    void rotate_outerloop_controller(void);
+    double error_yaw(double yaw_com, double yaw_sens);
 
 	////////////////below, the outer loop of the translational controller////////// added on 27th, September, for 6DOF
 	double Px_nom;
@@ -206,7 +208,7 @@ private:
 	double V_sen_b[3];
 	////////////////above, the inner loop of the translational controller/////// added on 27th, September, for 6DOF
 
-	////////the parameters in the psudo inverse dynamics
+	////////the parameters in the feedback control
 	double ksi_trans_out_x;
 	double ksi_trans_out_y;
 	double ksi_trans_out_z;
@@ -221,6 +223,20 @@ private:
 	double omega_trans_in_y;
 	double omega_trans_in_z;
 
+	double ksi_roll_out;
+	double ksi_pitch_out;
+	double ksi_yaw_out;
+	double omega_roll_out;
+	double omega_pitch_out;
+	double omega_yaw_out;
+
+	double ksi_roll_in;
+	double ksi_pitch_in;
+	double ksi_yaw_in;
+	double omega_roll_in;
+	double omega_pitch_in;
+	double omega_yaw_in;
+
 	//sampling time:
 	double T_sampling;
 	uint16_t time_scale_position;  //the scale of the sampling time of the position time compared to attitude loop
@@ -228,9 +244,11 @@ private:
 	double m;
 	double g_;
 	double G;
+	double G_6dof_init;
 
 	/////below, the variables used to compute the nominal and commanded Euler angles// added on 27th, September, for 6DOF
 	double gamma_ctrl[3];
+	double gamma_err[3];
 	double gamma_com[3];
 	double gamma_nom[3];
 	double gamma_sen[3];
@@ -245,7 +263,40 @@ private:
 	/////above, the variables used to compute the nominal and commanded Euler angles/// added on 27th, September, for 6DOF
 
 
+	//the variables used in the attitude control
+	double omega_nom[3];
+	double omega_com[3];  /*?????????*/
+	double omega_err[3];//={0,0,0};
+	double omega_ctrl[3];
 
+	double gamma_err_int[3];//={0,0,0};
+	double omega_err_int[3];//={0,0,0};
+
+	double phi_nom;//=0;		//gamma_nom[0];
+	double theta_nom;//=0;
+	double psi_nom;//=0;
+
+	double p_nom;//=0;			//omega_nom[0]
+	double q_nom;//=0;
+	double r_nom;//=0;
+	//above, the variables used in the attitude control
+
+
+	//////////the parameters in the pseudo inverse dynamics of attitude control loop
+	double gamma_nom_filter_m1[3];
+	double omega_nom_filter_m1[3];
+	double gamma_nom_filter_m2[3];
+	double omega_nom_filter_m2[3];
+	////////???????????/////??/////////////////
+	double xi_filter_out[3];  //?????????
+	double omega_n_filter_out[3];  //?????????
+	double a_1_out[3];   //?????????
+	double a_2_out[3];  //?????????
+	double xi_filter_in[3];  //?????????
+	double omega_n_filter_in[3];  //?????????
+	double a_1_in[3];   //?????????
+	double a_2_in[3];  //?????????
+	//above, the parameters in the pseudo inverse dynamics of attitude control loop
 
 };
 

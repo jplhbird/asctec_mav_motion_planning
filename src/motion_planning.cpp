@@ -73,6 +73,85 @@ pnh_("~/fcu")
     global_position_cmd.z = 0;
     global_position_cmd.yaw = 0;
 
+    //initialize the variables in the TLC position control
+    {
+    	omega_n_filter_out_trans[0] = 10.0;
+    	omega_n_filter_out_trans[1] = 10.0;
+    	omega_n_filter_out_trans[2] = 10.0;
+    	xi_filter_out_trans[0] = 1.414;
+    	xi_filter_out_trans[1] = 1.414;
+    	xi_filter_out_trans[2] = 1.414;
+
+    	omega_n_filter_in_trans[0] = 10.0;
+    	omega_n_filter_in_trans[1] = 10.0;
+    	omega_n_filter_in_trans[2] = 10.0;
+		xi_filter_in_trans[0] = 1.414;
+		xi_filter_in_trans[1] = 1.414;
+		xi_filter_in_trans[2] = 1.414;
+
+		xi_filter_out[0] = 1.414;
+		xi_filter_out[1] = 1.414;
+		xi_filter_out[2] = 1.414;
+		omega_n_filter_out[0] = 10.0;
+		omega_n_filter_out[1] = 10.0;
+		omega_n_filter_out[2] = 10.0;
+
+		xi_filter_in[0] = 1.414;
+		xi_filter_in[1] = 1.414;
+		xi_filter_in[2] = 1.414;
+		omega_n_filter_in[0] = 20.0;
+		omega_n_filter_in[1] = 20.0;
+		omega_n_filter_in[2] = 20.0;
+
+    	for (int i=0;i<3;i++) {
+    		a_1_out_trans[i] = omega_n_filter_out_trans[i]*omega_n_filter_out_trans[i];
+    		a_2_out_trans[i] = 2*xi_filter_out_trans[i]*omega_n_filter_out_trans[i];
+
+    		a_1_in_trans[i] = omega_n_filter_in_trans[i]*omega_n_filter_in_trans[i];
+    		a_2_in_trans[i] = 2*xi_filter_in_trans[i]*omega_n_filter_in_trans[i];
+
+    		a_1_out[i] = omega_n_filter_out[i]*omega_n_filter_out[i];
+    		a_2_out[i] = 2*xi_filter_out[i]*omega_n_filter_out[i];
+
+    		a_1_in[i] = omega_n_filter_in[i]*omega_n_filter_in[i];
+    		a_2_in[i] = 2*xi_filter_in[i]*omega_n_filter_in[i];
+    	}
+
+    	ksi_roll_out=2.6;
+    	ksi_pitch_out=2.6;
+    	ksi_yaw_out=1.7;
+    	ksi_roll_in=3.4;
+    	ksi_pitch_in=3.4;
+    	ksi_yaw_in=2.3;
+
+    	omega_roll_out=0.8;
+    	omega_pitch_out=0.8;
+    	omega_yaw_out=0.8;
+    	omega_roll_in=3.5;
+    	omega_pitch_in=3.5;
+    	omega_yaw_in=3.2;
+
+    	ksi_trans_out_x=1.6;
+    	ksi_trans_out_y=1.6;
+    	ksi_trans_out_z=2;
+    	omega_trans_out_x=0.15;
+    	omega_trans_out_y=0.15;
+    	omega_trans_out_z=0.15;
+
+    	ksi_trans_in_x=1.6;
+    	ksi_trans_in_y=1.6;
+    	ksi_trans_in_z=2;
+    	omega_trans_in_x=0.4;
+    	omega_trans_in_y=0.4;
+    	omega_trans_in_z=0.4;
+
+		//sampling time:
+		T_sampling = 0.05;
+		time_scale_position = 1;  //the scale of the sampling time of the position time compared to attitude loop
+
+		m = 1.35;
+		g_ = 9.8;
+    }
 
 }
 
@@ -94,11 +173,9 @@ void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata
 	//only used in test
 
 
-
 //	std_msgs/Header header
 //	geometry_msgs/Pose pose
 //	geometry_msgs/Vector3 velocity
-
 
 
 // gpsdata:
@@ -161,20 +238,50 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 
 void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata){
 	//k_stick_yaw_
-
 	//int k_stick_;
-
 
 	//the command is in real angle and real angular velocity
 	//roll and pitch angle cmd  =real_angle*1000/K_stick
-
 	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
-
 
 	int64_t ts_usec;
 	double ts_sec;
 	double time_body;
 	double T_sampling;
+
+	{
+		//the feedback information of the position, velocity, and yaw angle:
+		//should be transfromed from ENU to NED
+		//the control law is expressed in NED
+		//the feedback information is expressed in ENU:
+		P_sen[0] = state_feedback.pose.position.x;
+		P_sen[1] = -state_feedback.pose.position.y;
+		P_sen[2] = -state_feedback.pose.position.z;
+
+		V_sen[0] = state_feedback.velocity.x;
+		V_sen[1] = -state_feedback.velocity.y;
+		V_sen[2] = -state_feedback.velocity.z;
+
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = state_feedback.pose.orientation.x;
+		quaternion[2] = state_feedback.pose.orientation.y;
+		quaternion[3] = state_feedback.pose.orientation.z;
+		quaternion[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//NED frame:
+		gamma_sen[0] = gamma_temp[0];
+		gamma_sen[1] = -gamma_temp[1];
+		gamma_sen[2] = -gamma_temp[2];
+	}
 
 
 	//notice T_sampling, very important:
@@ -196,6 +303,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
 		 //note the rcdata is not the same with the command sent to LL from HL
+		 //msg.x msg.y units: rad
 
 		 msg.x =  (rcdata->channel[0]-2047) *k_stick_/1000.0*M_PI/180.0;  //pitch
 		 msg.y =  (-rcdata->channel[1] + 2047) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
@@ -241,7 +349,37 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			global_position_cmd.v_max_z= 5;
 		}
 
-		msg = global_position_cmd;
+		//modified on Feb. 13, 2017, cancel this massege:
+		//msg = global_position_cmd;
+
+		//added on Feb. 2017, position control run in PC
+
+		//ENU frame to NED frame:
+		P_nom[0] = global_position_cmd.x;
+		P_nom[1] = -global_position_cmd.y;
+		P_nom[2] = -global_position_cmd.z;
+		gamma_nom[2] = -global_position_cmd.yaw;
+
+
+		//run the position control law, all expressed in NED frame
+		compute_V_nom();
+		compute_F_nom();
+		translate_outerloop_controller();
+		translate_innerloop_controller();
+		compute_gamma_nom();
+		compute_omega_nom();
+		rotate_outerloop_controller();
+
+		//generate the thrust and attitude commands, notice, should be in in ENU frame:
+
+		msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+		//note the rcdata is not the same with the command sent to LL from HL
+
+		msg.x =  gamma_nom[1];  //pitch angle
+		msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+		msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+		msg.z = 0.5*G/(m*g_);
 	}
 
 
@@ -257,6 +395,123 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 		//record the initial time
 		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
+		{
+			for (int i=0;i<3;i++)    //commanded value, control value and sensed value initialization
+			{
+				//P_com[i] = 0;
+				P_nom[i] = 0;
+				//P_sen[i] = 0;
+				P_err[i] = 0;
+				P_err_int[i] = 0;
+
+				V_nom[i] = 0;
+				V_com[i] = 0;
+				V_ctrl[i] = 0;
+				//V_sen[i] = 0;
+				V_err[i] = 0;
+				V_err_int[i] = 0;
+
+				f_z_com=0;
+
+				F_nom[i] = 0;
+				F_com[i] = 0;
+				F_ctrl[i] = 0;
+
+				gamma_com[i] = 0;
+				gamma_nom[i] = 0;
+				//gamma_sen[i] = 0;
+				gamma_err[i] = 0;
+				gamma_err_int[i] = 0;
+				gamma_ctrl[i]=0;
+
+				omega_nom[i] = 0;
+				omega_com[i] = 0;
+				omega_ctrl[i] = 0;
+				//omega_sen[i] = 0;
+				omega_err[i] = 0;
+				omega_err_int[i] = 0;
+			}
+
+			for (int i=0;i<3;i++)  //the temp variables in the psedodifferentiator
+			{
+				V_nom_filter_m2[i]=0;
+				V_nom_filter_m1[i]=0;
+				P_nom_filter_m2[i]=0;
+				P_nom_filter_m1[i]=0;
+				omega_nom_filter_m2[i]=0;
+				omega_nom_filter_m1[i]=0;
+				gamma_nom_filter_m2[i]=0;
+				gamma_nom_filter_m1[i]=0;
+			}
+
+			phi_nom=0;     //the variables remember the value after filter in the inverse functions.
+			theta_nom=0;
+			psi_nom=0;
+			p_nom=0;
+			q_nom=0;
+			r_nom=0;
+			Px_nom=0;
+			Py_nom=0;
+			Pz_nom=0;
+			Vx_nom=0;
+			Vy_nom=0;
+			Vz_nom=0;  //the variables remember the value after filter in the inverse functions.
+			G=0;//initial total thrust
+
+			//yaw angle:
+			gamma_com[2] = gamma_sen[2];
+			gamma_nom[2] = gamma_sen[2];
+			gamma_nom_filter_m1[2]=gamma_sen[2];
+
+		//initialize when transition from 3DOF to 6 DOF
+			yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+			gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+			gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+			//reset_yaw_control(); //initialize the commands of yaw angle
+
+			G = rcdata->channel[2]/4096.0/0.5*m; //obtain the relative mass when transition from 3dof to 6dof
+			G_6dof_init = G;  //record the thrust in the transition instant when from 3 DOF to 6 DOF
+			m = G_6dof_init/g_;  //revise the mass accoording to the current total thrust command
+
+			//computeR(&gamma_com[0], &Rcom_filter_m1[0][0]); //set the initial value of rotation matrix
+	//		for(int i=0;i<3;i++)
+	//		{
+	//			for(int j=0;j<3;j++)
+	//			{
+	//				Rcom_filter_m1[i][j]=R_com[i][j];
+	//			}
+	//		}
+
+			P_nom[0] = P_sen[0];
+			P_nom[1] = P_sen[1];
+			P_nom[2] = P_sen[2]; //???????,????,????????
+
+			Px_nom =   P_sen[0];
+			Py_nom =   P_sen[1];
+			Pz_nom =   P_sen[2]; //???????,????,????????
+
+			Vx_nom = 0;
+			Vy_nom = 0;
+			Vz_nom = 0;
+
+			P_nom_filter_m1[0]=P_sen[0]; //the filter value, ??????????
+			P_nom_filter_m1[1]=P_sen[1]; //??????????
+			P_nom_filter_m1[2]=P_sen[2]; //??????????
+
+			P_nom_filter_m2[0]=0;   //??????????
+			P_nom_filter_m2[1]=0;   //??????????
+			P_nom_filter_m2[2]=0;   //??????????
+
+			V_nom_filter_m1[0]=0;  //??????????
+			V_nom_filter_m1[1]=0;  //??????????
+			V_nom_filter_m1[2]=0;  //??????????
+
+			V_nom_filter_m2[0]=0;   //??????????
+			V_nom_filter_m2[1]=0;   //??????????
+			V_nom_filter_m2[2]=0;   //??????????
+		}
+
 	}
 
 	if (((rcdata->channel[5])<4000) | (flag_rc_cmd != 1))
@@ -755,6 +1010,180 @@ void TeleopIMU::compute_gamma_nom(void)
 //	gamma_com[0]=0;
 //	gamma_com[0]=0;
 }
+
+
+
+
+void TeleopIMU::compute_omega_nom(void)
+{
+	//T_sampling?????
+    int i;
+	float d_phi_nom;
+	float d_theta_nom;
+	float d_psi_nom; /*????????????,????*/
+
+	float phi_nom_last,theta_nom_last,psi_nom_last;
+
+//	float xi_filter_out[3]={1.414f,1.414f,1.414f};  //????
+//	float omega_n_filter_out[3]={5.0f,5.0f,5.0f};  //????
+//	float a_1_out[3];
+//	float a_2_out[3];  //????
+//
+//
+//	for(i=0;i<3;i++)
+//	{a_1_out[i]=omega_n_filter_out[i]*omega_n_filter_out[i];
+//	a_2_out[i]=2*xi_filter_out[i]*omega_n_filter_out[i];
+//	}  //????
+
+	phi_nom_last=phi_nom;
+	theta_nom_last=theta_nom;
+	psi_nom_last=psi_nom;     /*??????????????(????????????),????*/
+
+	/////////????//////////////
+	for(i=0;i<3;i++)
+	{gamma_nom_filter_m2[i]=(a_1_out[i]*gamma_nom[i]-a_1_out[i]*gamma_nom_filter_m1[i]-a_2_out[i]*gamma_nom_filter_m2[i])*T_sampling+gamma_nom_filter_m2[i];
+	gamma_nom_filter_m1[i]=gamma_nom_filter_m2[i]*T_sampling+gamma_nom_filter_m1[i];
+	}
+	/////////????//////////////
+
+	phi_nom=gamma_nom_filter_m1[0];
+	theta_nom=gamma_nom_filter_m1[1];
+	psi_nom=gamma_nom_filter_m1[2];   /*???????,????,???0,??????????*/
+
+	d_phi_nom=(phi_nom-phi_nom_last)/T_sampling;
+	d_theta_nom=(theta_nom-theta_nom_last)/T_sampling;
+	d_psi_nom=(psi_nom-psi_nom_last)/T_sampling;   //??????,???????,?????
+
+	omega_nom[0]=d_phi_nom-d_psi_nom*sin(gamma_nom[1]);
+	omega_nom[1]=d_theta_nom*cos(gamma_nom[0])+d_psi_nom*sin(gamma_nom[0])*cos(gamma_nom[1]);
+	omega_nom[2]=-d_theta_nom*sin(gamma_nom[0])+d_psi_nom*cos(gamma_nom[0])*cos(gamma_nom[1]);
+	//omega_nom[0]=0;omega_nom[1]=0;omega_nom[2]=0;//tuning only
+}
+
+
+
+
+void TeleopIMU::rotate_outerloop_controller(void)
+//?????T,?????,??
+{
+	int i,j,k;
+
+// 	float ksi_roll_out=m_setpadlg.m_zita_phi;
+// 	float ksi_pitch_out=m_setpadlg.m_zita_theta;
+// 	float ksi_yaw_out=m_setpadlg.m_zita_psi;
+// 	float omega_roll_out=m_setpadlg.m_omega_phi;
+// 	float omega_pitch_out=m_setpadlg.m_omega_theta;
+// 	float omega_yaw_out=m_setpadlg.m_omega_psi;
+
+	float alfa_112;
+	float alfa_122;
+	float alfa_132;
+	float alfa_111;
+	float alfa_121;
+	float alfa_131;
+
+	float K_I1[3][3];
+	float K_p1[3][3];  /*????????,????*/
+
+	float temp1[3]={0,0,0},temp2[3]={0,0,0};  //????omega_ctrl[i]?P???I??
+
+	for(i=0;i<2;i++)    /*??????????,??????*/
+	{
+		gamma_err[i]=gamma_com[i]-gamma_sen[i];
+		gamma_err_int[i]=gamma_err_int[i]+gamma_err[i]*T_sampling;  /*gamma_err,gamma_err_int ??????,????0*/
+	}
+
+	gamma_err[2] = error_yaw(gamma_com[2], gamma_sen[2]);
+	gamma_err_int[2]=gamma_err_int[2]+gamma_err[2]*T_sampling;
+
+//	if(if6dofcontroller==0)   //if the current controller is 3 DOF controller, then use the velocity control for yaw channel
+//	{
+//  	gamma_err[2]=0;
+//	    gamma_err_int[2]=0;    //if the yaw channel uses the angular velocity control, then uncomment these codes
+//	}
+
+	alfa_112=2*ksi_roll_out*omega_roll_out;
+	alfa_122=2*ksi_pitch_out*omega_pitch_out;
+	alfa_132=2*ksi_yaw_out*omega_yaw_out;
+	alfa_111=omega_roll_out*omega_roll_out;
+	alfa_121=omega_pitch_out*omega_pitch_out;
+	alfa_131=omega_yaw_out*omega_yaw_out;
+
+	K_I1[0][0]=alfa_111;
+	K_I1[0][1]=0.0f;
+	K_I1[0][2]=-alfa_131*sin(gamma_nom[1]);
+	K_I1[1][0]=0.0f;
+	K_I1[1][1]=alfa_121*cos(gamma_nom[0]);
+	K_I1[1][2]=alfa_131*sin(gamma_nom[0])*cos(gamma_nom[1]);
+	K_I1[2][0]=0.0f;
+	K_I1[2][1]=-alfa_121*sin(gamma_nom[0]);
+	K_I1[2][2]=alfa_131*cos(gamma_nom[0])*cos(gamma_nom[1]);
+
+	K_p1[0][0]=alfa_112;
+	K_p1[0][1]=omega_nom[1]*sin(gamma_nom[0])+omega_nom[2]*cos(gamma_nom[0]);
+	K_p1[0][2]=-alfa_132*sin(gamma_nom[1]);
+	K_p1[1][0]=-omega_nom[2];
+	K_p1[1][1]=alfa_122*cos(gamma_nom[0])+(omega_nom[1]*sin(gamma_nom[0])+omega_nom[2]*cos(gamma_nom[0]))*sin(gamma_nom[0])*sin(gamma_nom[1])/cos(gamma_nom[1]);
+	K_p1[1][2]=alfa_132*sin(gamma_nom[0])*cos(gamma_nom[1]);
+	K_p1[2][0]=omega_nom[1];
+	K_p1[2][1]=-alfa_122*sin(gamma_nom[0])+(omega_nom[1]*sin(gamma_nom[0])+omega_nom[2]*cos(gamma_nom[0]))*cos(gamma_nom[0])*sin(gamma_nom[1])/cos(gamma_nom[1]);
+	K_p1[2][2]=alfa_132*cos(gamma_nom[0])*cos(gamma_nom[1]);
+
+	for(j=0;j<3;j++)
+	{
+		for(k=0;k<3;k++)
+			temp1[j]=temp1[j]+K_p1[j][k]*gamma_err[k];
+	}      /*a?b??????????,??????,???????????0,?????????*/
+	for(j=0;j<3;j++)
+	{
+		for(k=0;k<3;k++)
+			temp2[j]=temp2[j]+K_I1[j][k]*gamma_err_int[k];
+	}     /*a?b??????????,??????,???????????0,?????????*/
+	for(i=0;i<3;i++)
+		omega_ctrl[i]=temp1[i]+temp2[i];
+
+	for(i=0;i<3;i++)
+		omega_com[i]=omega_ctrl[i]+omega_nom[i];  /*command ??????????*/
+
+//	if(if6dofcontroller==0)   //if the current controller is 3 DOF controller, then use the velocity control for yaw channel
+//	omega_com[2] = -(InputPWM[3]-1519)/50.0f*0.017453f;  //the angular velocity of pitch channel is given by the RC transmitter
+}
+
+
+
+double TeleopIMU::error_yaw(double yaw_com, double yaw_sens)
+{
+	//calculate the error of the yaw angle
+	double error;
+	int i=0;
+	error = yaw_com - yaw_sens;
+
+//	if ((error> 3.14159265f)  &&  (error<= 9.42477796f))
+//		error = error - 6.2831853f;
+//	else if ((error> 9.42477796f ) &&  (error<=  15.7079632679490f))
+//		error = error - 12.566370f;
+//	else if ((error< -3.14159265f)  &&  (error>= -9.42477796f))
+//		error = error + 6.2831853f;
+//	else if ((error< -9.42477796f ) &&  (error>=  -15.7079632679490f))
+//		error = error + 12.566370f;
+
+	if (error>3.14159265f)
+	{
+		i=(int)(error/(6.283185307179586f)-0.5f);
+		i=i+1;
+		error=error-i*6.283185307179586f;
+	}
+	else if (error<-3.14159265f)
+	{
+		i=(int)(error/(6.283185307179586f)-0.5f);
+		error=error-i*6.283185307179586f;
+	}
+
+	return error;
+}
+
+
+
 
 
 double TeleopIMU::norm_vector(double *p)
