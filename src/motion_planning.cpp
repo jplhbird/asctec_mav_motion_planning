@@ -43,7 +43,7 @@ pnh_("~/fcu")
 	gps_custom_sub_ =n.subscribe<asctec_hl_comm::GpsCustom> ("fcu/gps_custom", 1, &TeleopIMU::gpsdataCallback, this);
 	imu_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
 	flag_cmd_sub = n.subscribe<asctec_mav_motion_planning::flag_cmd>("flag_cmd", 1, &TeleopIMU::flagcmdCallback, this); //flag determine which device will sends the position cmd
-
+	cmdfromgene_sub = n.subscribe<asctec_hl_comm::mav_ctrl>("trajtodriver", 1, &TeleopIMU::minimumcmdCallback, this);
 
 
 	//config_motion = asctec_mav_motion_planning::motion_planning_paraConfig::__getDefault__();
@@ -164,6 +164,17 @@ void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstP
 		flag_rc_cmd=1; //position cmd from RC transmitter is used
 }
 
+void TeleopIMU::minimumcmdCallback(const asctec_hl_comm::mav_ctrlConstPtr& msg){
+
+	//commands for the position control,
+	//ENU frame to NED frame:
+	P_nom[0] = msg->x;
+	P_nom[1] = -msg->y;
+	P_nom[2] = -msg->z;
+	gamma_nom[2] = -msg->yaw;
+
+}
+
 
 
 void TeleopIMU::gpsdataCallback(const asctec_hl_comm::GpsCustomConstPtr& gpsdata){
@@ -251,7 +262,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	{
 		//the feedback information of the position, velocity, and yaw angle:
-		//should be transfromed from ENU to NED
+		//should be transformed from ENU to NED
 		//the control law is expressed in NED
 		//the feedback information is expressed in ENU:
 		P_sen[0] = state_feedback.pose.position.x;
@@ -347,18 +358,21 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			//unit:m/s
 			global_position_cmd.v_max_xy = 5;
 			global_position_cmd.v_max_z= 5;
+
+
+
+			//modified on Feb. 13, 2017, cancel this massege:
+			//msg = global_position_cmd;
+
+			//added on Feb. 2017, position control run in PC
+
+			//ENU frame to NED frame:
+			P_nom[0] = global_position_cmd.x;
+			P_nom[1] = -global_position_cmd.y;
+			P_nom[2] = -global_position_cmd.z;
+			gamma_nom[2] = -global_position_cmd.yaw;
 		}
 
-		//modified on Feb. 13, 2017, cancel this massege:
-		//msg = global_position_cmd;
-
-		//added on Feb. 2017, position control run in PC
-
-		//ENU frame to NED frame:
-		P_nom[0] = global_position_cmd.x;
-		P_nom[1] = -global_position_cmd.y;
-		P_nom[2] = -global_position_cmd.z;
-		gamma_nom[2] = -global_position_cmd.yaw;
 
 
 		//run the position control law, all expressed in NED frame
@@ -375,7 +389,6 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
 		//note the rcdata is not the same with the command sent to LL from HL
-
 		msg.x =  gamma_nom[1];  //pitch angle
 		msg.y =  -gamma_nom[0];   //opposite direction, roll angle
 		msg.yaw = -omega_com[2];   //opposite direction, yaw rate
@@ -485,31 +498,31 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 			P_nom[0] = P_sen[0];
 			P_nom[1] = P_sen[1];
-			P_nom[2] = P_sen[2]; //???????,????,????????
+			P_nom[2] = P_sen[2];
 
-			Px_nom =   P_sen[0];
-			Py_nom =   P_sen[1];
-			Pz_nom =   P_sen[2]; //???????,????,????????
+			Px_nom = P_sen[0];
+			Py_nom = P_sen[1];
+			Pz_nom = P_sen[2];
 
 			Vx_nom = 0;
 			Vy_nom = 0;
 			Vz_nom = 0;
 
-			P_nom_filter_m1[0]=P_sen[0]; //the filter value, ??????????
-			P_nom_filter_m1[1]=P_sen[1]; //??????????
-			P_nom_filter_m1[2]=P_sen[2]; //??????????
+			P_nom_filter_m1[0] = P_sen[0]; //the filter value
+			P_nom_filter_m1[1] = P_sen[1];
+			P_nom_filter_m1[2] = P_sen[2];
 
-			P_nom_filter_m2[0]=0;   //??????????
-			P_nom_filter_m2[1]=0;   //??????????
-			P_nom_filter_m2[2]=0;   //??????????
+			P_nom_filter_m2[0] = 0;
+			P_nom_filter_m2[1] = 0;
+			P_nom_filter_m2[2] = 0;
 
-			V_nom_filter_m1[0]=0;  //??????????
-			V_nom_filter_m1[1]=0;  //??????????
-			V_nom_filter_m1[2]=0;  //??????????
+			V_nom_filter_m1[0] = 0;
+			V_nom_filter_m1[1] = 0;
+			V_nom_filter_m1[2] = 0;
 
-			V_nom_filter_m2[0]=0;   //??????????
-			V_nom_filter_m2[1]=0;   //??????????
-			V_nom_filter_m2[2]=0;   //??????????
+			V_nom_filter_m2[0] = 0;
+			V_nom_filter_m2[1] = 0;
+			V_nom_filter_m2[2] = 0;
 		}
 
 	}

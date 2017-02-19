@@ -72,6 +72,9 @@ private:
 	//the topic name is still under discussion, from the SLAM module
 	void odometryCallback(const nav_msgs::OdometryConstPtr& odometry);
 
+	//the message from the minimum trajectory generation
+	void minimumcmdCallback(const asctec_hl_comm::mav_ctrlConstPtr& msg);
+
     //send command in acc mode
     void send_acc_ctrl(void);
 
@@ -109,6 +112,7 @@ private:
     ros::Subscriber sub;
 
     ros::Subscriber flag_cmd_sub;
+    ros::Subscriber cmdfromgene_sub;
 
 
     sensor_fusion_comm::ExtState state_feedback;
