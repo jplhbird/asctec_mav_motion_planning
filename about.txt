@@ -1,0 +1,3 @@
+feature-A: position control run in hl, use original hl-firmware
+feature-B-globalcontrol: used to simulate the global control 
+feature-C: postion control run in ll, should modify hl-firmware
