@@ -18,7 +18,7 @@ Minimumsnap::Minimumsnap()
 
 	taj_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
 
-	control_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("trajtodriver",1); //command to HL_interface
+	control_pub = nh_minsnap.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
 
 	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
 
