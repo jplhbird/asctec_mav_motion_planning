@@ -64,7 +64,7 @@ pnh_("~/fcu")
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source = 2;
+    flag_pose_source = 1;
 
 
     //initialize the commands:
@@ -566,7 +566,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
 		ROS_INFO_STREAM("cmd  , z: "<<msg.z);
 		ROS_INFO_STREAM("global_position_cmd  , z: "<<global_position_cmd.z);
-		llcmd_pub_vel.publish(msg);
+		//llcmd_pub_vel.publish(msg);
 	}
 
     ext_state.publish(state_feedback);
