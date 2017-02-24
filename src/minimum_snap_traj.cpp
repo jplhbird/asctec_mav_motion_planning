@@ -43,7 +43,7 @@ Minimumsnap::Minimumsnap()
 	begin_init.flag=0;
 	begin_init.time=0;
 
-	current_point=0;
+	current_point=-1;
 	Pnomflag =1;
 	for(i=0;i<4;i++)
 	{
@@ -108,133 +108,180 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
  	if (flag_pc_cmd==1)
  	{
- 		ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
-		//record the yaw angle at the beginning of each line:
-		if (i_jump_no==20)
-		{
-			reset_yaw_control();
-			//time need to rotate:
-			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
-
-			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
-			i_jump_no=30;
-
-			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
-			ROS_INFO_STREAM("yaw_6DOF_init[i]"<<(yaw_6DOF_init));
-		}
-
-
-		if ((time_body<=time_current[0]) && (i_jump_no==30))
-		{
-			//rotate the yaw angle to the set angle:
-			rotate_yaw_mapcruise(current_point);
-			//i_jump_no=40;
-			ROS_INFO_STREAM("rotate_yaw_mapcruise");
-
-		}
-
-		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2.0))
-		{
-								//time need to line:
-			timearray__mapcruise[2*current_point+1]= time_body+
-			sqrt(
-			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
-			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
-			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
-			)/velocity_mapcruise[current_point];
-
-			time_current[2]= time_body+
-			sqrt(
-			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
-			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
-			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
-			)/velocity_mapcruise[current_point];
-
-			//time_body=time_body+T_sampling;
-
-			i_jump_no=50;
-
-		}
-
-
-
-		//line:
-		if ((time_body>time_current[0]+2.0)&& (time_body<=time_current[2]) && (i_jump_no==50))
-		{
-			int j;
-			//minimum snap trajectory:
-			for(j=0;j<3;j++)
-			{
-				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
-				P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
-				timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
-				P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
-			}
-			//time_body =time_body+T_sampling;
-			//i_jump_no=100;
-		}
-
-		if ((time_body>time_current[2])&& (time_body<=5.0+time_current[2]) && (i_jump_no==50))
-		{
-			//hold on:
-			if((time_body>=4.8+time_current[2])&&(i_jump_no==50))
-			{
-				//next line:
-				current_point++;
-
-				i_jump_no=20;
-
-				time_current[0]=0;
-				time_current[2]=0;
-				time_current[1]=0;
-			}
-
-			if(current_point>=i_mapcruise)
-			{
-				//finish cruise:
-				Pnomflag =1;
-
-				asctec_mav_motion_planning::flag_cmd flag_topic;
-				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
-				flag_cmd_pub.publish(flag_topic);
-
-				flag_pc_cmd=0;
-				time_body =0;
-				time_doby_last=0;
-
-
-			}
-
-			//time_body =time_body+T_sampling;
-		}
+// 		ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+//		//record the yaw angle at the beginning of each line:
+//		if (i_jump_no==20)
+//		{
+//			reset_yaw_control();
+//			//time need to rotate:
+//			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
+//
+//			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
+//			i_jump_no=30;
+//
+//			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
+//			ROS_INFO_STREAM("yaw_6DOF_init[i]"<<(yaw_6DOF_init));
+//		}
+//
+//
+//		if ((time_body<=time_current[0]) && (i_jump_no==30))
+//		{
+//			//rotate the yaw angle to the set angle:
+//			rotate_yaw_mapcruise(current_point);
+//			//i_jump_no=40;
+//			ROS_INFO_STREAM("rotate_yaw_mapcruise");
+//
+//		}
+//
+//		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2.0))
+//		{
+//								//time need to line:
+//			timearray__mapcruise[2*current_point+1]= time_body+
+//			sqrt(
+//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+//			)/velocity_mapcruise[current_point];
+//
+//			time_current[2]= time_body+
+//			sqrt(
+//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+//			)/velocity_mapcruise[current_point];
+//
+//			//time_body=time_body+T_sampling;
+//
+//			i_jump_no=50;
+//
+//		}
+//
+//
+//
+//		//line:
+//		if ((time_body>time_current[0]+2.0)&& (time_body<=time_current[2]) && (i_jump_no==50))
+//		{
+//			int j;
+//			//minimum snap trajectory:
+//			for(j=0;j<3;j++)
+//			{
+//				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+//				P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
+//				timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
+//				P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
+//			}
+//			//time_body =time_body+T_sampling;
+//			//i_jump_no=100;
+//		}
+//
+//		if ((time_body>time_current[2])&& (time_body<=5.0+time_current[2]) && (i_jump_no==50))
+//		{
+//			//hold on:
+//			if((time_body>=4.8+time_current[2])&&(i_jump_no==50))
+//			{
+//				//next line:
+//				current_point++;
+//
+//				i_jump_no=20;
+//
+//				time_current[0]=0;
+//				time_current[2]=0;
+//				time_current[1]=0;
+//			}
+//
+//			if(current_point>=i_mapcruise)
+//			{
+//				//finish cruise:
+//				Pnomflag =1;
+//
+//				asctec_mav_motion_planning::flag_cmd flag_topic;
+//				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
+//				flag_cmd_pub.publish(flag_topic);
+//
+//				flag_pc_cmd=0;
+//				time_body =0;
+//				time_doby_last=0;
+//
+//
+//			}
+//
+//			//time_body =time_body+T_sampling;
+//		}
 
 		asctec_hl_comm::mav_ctrl msg;
 
-		//important, notice the unit and the definition of the coordinate frame:
-		msg.x = P_nom[0];  //must give a value to P_nom, or it will be zero?
-		msg.y = P_nom[1];
-		msg.z = P_nom[2];
-		msg.yaw = gamma_com[2];
-		msg.type = asctec_hl_comm::mav_ctrl::position;
-		//unit:m/s
-		msg.v_max_xy = 5;
-		msg.v_max_z= 5;
+		if(current_point==-1)
+		{
+			//important, notice the unit and the definition of the coordinate frame:
+			msg.x = 99.99;  //must give a value to P_nom, or it will be zero?
+			msg.y = 99.99;
+			msg.z = 99.99;
+			msg.yaw = 0;
+			msg.type = asctec_hl_comm::mav_ctrl::position;
+			//unit:m/s
+			msg.v_max_xy = 5;
+			msg.v_max_z= 5;
 
-		//taj_pub.publish(msg);
+			//taj_pub.publish(msg);
 
-		//publish the msg for the self-developed driver
-		control_pub.publish(msg);
+			//publish the msg for the self-developed driver
+			control_pub.publish(msg);
 
-		//show it in terminal:
-		ROS_INFO_STREAM("cmd , x: "<<msg.x);
-		ROS_INFO_STREAM("cmd , y: "<<msg.y);
-		ROS_INFO_STREAM("cmd , yaw: "<<msg.yaw);
-		ROS_INFO_STREAM("cmd , z: "<<msg.z);
-
-		ROS_INFO_STREAM("gamma_nom[2]"<<(gamma_nom[2]));
-		ROS_INFO_STREAM("gamma_sen[2]"<<(gamma_sen[2]));
+			//show it in terminal:
+			ROS_INFO_STREAM("beginning");
+		}
 
 
+		else if(current_point < i_mapcruise)
+		{
+			//important, notice the unit and the definition of the coordinate frame:
+			msg.x = points_mapcruise[0][current_point];  //must give a value to P_nom, or it will be zero?
+			msg.y = points_mapcruise[1][current_point];
+			msg.z = points_mapcruise[2][current_point];
+			msg.yaw = gamma_com[current_point];
+			msg.type = asctec_hl_comm::mav_ctrl::position;
+			//unit:m/s
+			msg.v_max_xy = 5;
+			msg.v_max_z= 5;
+
+			//taj_pub.publish(msg);
+
+			//publish the msg for the self-developed driver
+			control_pub.publish(msg);
+
+			//show it in terminal:
+			ROS_INFO_STREAM("cmd , x: "<<msg.x);
+			ROS_INFO_STREAM("cmd , y: "<<msg.y);
+			ROS_INFO_STREAM("cmd , z: "<<msg.z);
+			ROS_INFO_STREAM("cmd , yaw: "<<msg.yaw);
+
+			current_point++;
+
+		}
+		else if (current_point >= i_mapcruise)
+		{
+			current_point = -1;
+			flag_pc_cmd = 0;
+
+
+			//important, notice the unit and the definition of the coordinate frame:
+			msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
+			msg.y = 99.999;
+			msg.z = 99.999;
+			msg.yaw = 0;
+			msg.type = asctec_hl_comm::mav_ctrl::position;
+			//unit:m/s
+			msg.v_max_xy = 5;
+			msg.v_max_z= 5;
+
+			//taj_pub.publish(msg);
+
+			//publish the msg for the self-developed driver
+			control_pub.publish(msg);
+
+			//show it in terminal:
+			ROS_INFO_STREAM("end");
+		}
 	}
 
 }
@@ -429,7 +476,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 
 	Pnomflag =100; //exclude other commands
 	//time_body=0;
-	current_point=0;
+	current_point=-1;
 	i_jump_no=20;
 	for(int i=0;i<4;i++)
 	{
