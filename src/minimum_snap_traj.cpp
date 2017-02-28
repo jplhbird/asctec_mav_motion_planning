@@ -99,7 +99,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	//T_sampling = 0.05;
 
 
- 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ //	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
 // 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 	//map cruise trajectory, the trajectory follows minimum snap
@@ -240,7 +240,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			msg.x = points_mapcruise[0][current_point];  //must give a value to P_nom, or it will be zero?
 			msg.y = points_mapcruise[1][current_point];
 			msg.z = points_mapcruise[2][current_point];
-			msg.yaw = gamma_com[current_point];
+			msg.yaw = yaw_mapcruise[current_point];
 			msg.type = asctec_hl_comm::mav_ctrl::position;
 			//unit:m/s
 			msg.v_max_xy = 5;
