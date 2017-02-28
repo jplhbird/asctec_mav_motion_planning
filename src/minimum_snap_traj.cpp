@@ -213,9 +213,9 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 		if(current_point==-1)
 		{
 			//important, notice the unit and the definition of the coordinate frame:
-			msg.x = 99.99;  //must give a value to P_nom, or it will be zero?
-			msg.y = 99.99;
-			msg.z = 99.99;
+			msg.x = 9.999;  //must give a value to P_nom, or it will be zero?
+			msg.y = 9.999;
+			msg.z = 9.999;
 			msg.yaw = 0;
 			msg.type = asctec_hl_comm::mav_ctrl::position;
 			//unit:m/s
@@ -229,6 +229,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 			//show it in terminal:
 			ROS_INFO_STREAM("beginning");
+
+			current_point++;
 		}
 
 
