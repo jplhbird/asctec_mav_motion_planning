@@ -89,9 +89,9 @@ private:
 
 
 	//2017 Jan. added for map cruise:
-	float points_mapcruise[3][20];
-	float velocity_mapcruise[20];
-	float yaw_mapcruise[20];
+	float points_mapcruise[3][200];
+	float velocity_mapcruise[200];
+	float yaw_mapcruise[200];
 	float timearray__mapcruise[40];
 	int i_mapcruise;  //no of commanded target points
 	double ll_mapcruise[3];

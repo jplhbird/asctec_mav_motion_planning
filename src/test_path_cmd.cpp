@@ -70,21 +70,71 @@ int main(int argc, char **argv)
 //    	float cmdp[5][3]={{1,1,3},{110,1,3},{8,7,2},{9,7,2},{5,1,4}};
 //    	float yawcmd[5] = {0,0,0,0,0};
 
-    	float cmdp[5][3]={{0,0,3},{10,0,3},{5,-5,2},{0,-5,2},{0,0,3}};
 
-    	float yawcmd[5] = {0,0,0,0,0};
+    	int totalno;
+
+
+    	float cmdp_c[100][3];
+   		float yawcmd_c[100];
+
+    	float cmdp[6][3]={{0,0,3},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,5,2}};
+    	float yawcmd[6] = {0,0,0.2,0,0,0.1}; //units: rad
+
+    	totalno = 6;
+
+
+    	int choice = 1;
+    	//circ
+
+
+    	if(choice==0)
+    	{
+    		totalno = 100;
+    	}
+    	double deltaltheta = 2*M_PI/totalno;
+    	double ra = 10;
+    	for (int j=0; j<totalno; j++){
+    		cmdp_c[j][0]=ra*cos(deltaltheta*j);
+    		cmdp_c[j][1]=ra*sin(deltaltheta*j);
+    		cmdp_c[j][2]=2;
+    		yawcmd_c[j]=0.12;
+    	}
+
+
+
 
     	nav_msgs::Path gui_path;
     	geometry_msgs::PoseStamped pose;
     	std::vector<geometry_msgs::PoseStamped> plan;
-		for (int i=0; i<5; i++){
-			  pose.pose.position.x = cmdp[i][0];
-			  pose.pose.position.y = cmdp[i][1];
-			  pose.pose.position.z = cmdp[i][2];
+		for (int i=0; i<totalno; i++){
+
+			  if(choice == 1)
+			  {
+				  pose.pose.position.x = cmdp[i][0];
+				  pose.pose.position.y = cmdp[i][1];
+				  pose.pose.position.z = cmdp[i][2];
+			  }
+			  else
+			  {
+				  pose.pose.position.x = cmdp_c[i][0];
+				  pose.pose.position.y = cmdp_c[i][1];
+				  pose.pose.position.z = cmdp_c[i][2];
+			  }
 
 			  //quaternion, note the order
 			  double ea[3]={0,0,0};
-			  ea[2]=yawcmd[i];
+
+
+
+			  if(choice == 1)
+			  {
+				  ea[2]=yawcmd[i];
+			  }
+			  else
+			  {
+				  ea[2]=yawcmd_c[i];
+			  }
+
 
 			  double R_temp[9];
 			  double quaternion[4];

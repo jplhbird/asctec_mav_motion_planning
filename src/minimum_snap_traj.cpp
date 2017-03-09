@@ -252,10 +252,11 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			control_pub.publish(msg);
 
 			//show it in terminal:
-			ROS_INFO_STREAM("cmd , x: "<<msg.x);
-			ROS_INFO_STREAM("cmd , y: "<<msg.y);
-			ROS_INFO_STREAM("cmd , z: "<<msg.z);
-			ROS_INFO_STREAM("cmd , yaw: "<<msg.yaw);
+			ROS_INFO_STREAM("current no "<<current_point);
+			ROS_INFO_STREAM("cmd, x: "<<msg.x);
+			ROS_INFO_STREAM("cmd, y: "<<msg.y);
+			ROS_INFO_STREAM("cmd, z: "<<msg.z);
+			ROS_INFO_STREAM("cmd, yaw: "<<msg.yaw);
 
 			current_point++;
 
