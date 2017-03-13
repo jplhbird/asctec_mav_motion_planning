@@ -77,22 +77,22 @@ int main(int argc, char **argv)
     	float cmdp_c[100][3];
    		float yawcmd_c[100];
 
-    	float cmdp[6][3]={{0,0,3},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,5,2}};
+    	float cmdp[6][3]={{0,0,5},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,10,2}};
     	float yawcmd[6] = {0,0,0.2,0,0,0.1}; //units: rad
 
     	totalno = 6;
 
 
-    	int choice = 1;
+    	int choice = 0;
     	//circ
 
 
     	if(choice==0)
     	{
-    		totalno = 100;
+    		totalno = 20;
     	}
     	double deltaltheta = 2*M_PI/totalno;
-    	double ra = 10;
+    	double ra = 5;
     	for (int j=0; j<totalno; j++){
     		cmdp_c[j][0]=ra*cos(deltaltheta*j);
     		cmdp_c[j][1]=ra*sin(deltaltheta*j);
