@@ -271,7 +271,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 			msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
 			msg.y = 99.999;
 			msg.z = 99.999;
-			msg.yaw = -(3000.0-360000.0)/360000.0*2*M_PI; //notice the transformation process, the accuracy information for the low level controller
+			msg.yaw = -(3000.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, the accuracy information for the low level controller
 			msg.type = asctec_hl_comm::mav_ctrl::position;
 			//unit:m/s
 			msg.v_max_xy = 5;

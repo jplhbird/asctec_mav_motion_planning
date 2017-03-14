@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     	totalno = 6;
 
 
-    	int choice = 0;
+    	int choice = 1;
     	//circ
 
 
