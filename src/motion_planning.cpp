@@ -64,7 +64,7 @@ pnh_("~/fcu")
     //out door or indoor,
     //1: outdoor, GPS provides the position information
     //2: indoor, SLAM module provides the position information
-    flag_pose_source = 1;
+    flag_pose_source = 2;
 
 
     //initialize the commands:
@@ -227,6 +227,14 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 	}
 
 	//publish the external state for position control purpose
+
+	////////test only////////////////////
+//	state_feedback.pose.orientation.w=1;
+//	state_feedback.pose.position.x=1000;
+//	state_feedback.pose.position.y=25300;
+//	state_feedback.pose.position.z=566;
+	/////////////////////////////////////
+
 	ext_state.publish(state_feedback);
 
 	//test the frequency of the data:
