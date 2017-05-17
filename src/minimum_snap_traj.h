@@ -26,7 +26,9 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <nav_msgs/Path.h>
+#include <sensor_msgs/PointCloud.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
+#include <qpOASES.hpp>
 
 
 // dynamic reconfigure includes
@@ -55,6 +57,8 @@ private:
 	void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
 
 	void extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& ext_state);
+
+	//void virtual_dynamics()
 
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
@@ -105,6 +109,10 @@ private:
 	void rotate_yaw_mapcruise(int i);
 	unsigned int Pnomflag; //flag determining which trajectory is to be used
 
+	//2017 May, added for the initialization of SLAM
+	int slam_int; //flag determine if it is the initial time of SLAM
+	double yaw_ini_slam; //the yaw angle at the initial time, when SLAM is available
+
 	double T_sampling;
 	double time_doby_last;
 
@@ -132,6 +140,83 @@ private:
     //2: indoor, SLAM module provides the position information
     int flag_pose_source;
 
+    //2017, April, added for obstacle avoiding
+//
+//    double t1[20000];  //the time array for the virtual dynamics
+//    double y1[12][20000];  //the state output for the virtual dynamics
+//    double tspan; //the time horizon used to calculate the obstacle avoiding algorithm
+//    double y0[12]; //the intial state of the virtual dynamics
+//    double obsta;
+//    double pathpara;
+//    double T_traj;
+//    double u_virtual[3][20000]; //the control for the virtual dynamics
+
+
+
+
+    struct trajd
+	{
+		double trajd_0d[3]; //desired trajectory
+		double trajd_1d[3]; //1-st derivative of desired trajectory
+		double trajd_2d[3]; //2-nd derivative of desired trajectory
+		double trajd_3d[3]; //3-rd derivative of desired trajectory
+		double trajd_4d[3]; //4-th derivative of desired trajectory
+	};
+
+    struct pathpara_str
+    {
+    	double start[3];
+    	double end[3];
+    	double v; //the average velocity from start point to end point
+    };
+
+
+    void virtual_dynamics(const double *y0, const double *u_virtual, pathpara_str &pathpara,
+    		const sensor_msgs::PointCloud &obstac, double * tspan, double *t1, double*y1, int * n_dtime);
+    void virtual_Control(const trajd& trajd_i, const double * y, const sensor_msgs::PointCloud &obstac,  double *u_virutal);
+    void cbf_planning(const double *u,  double *out);
+    void virtual_dynamics_onestep(double *x, const double *u, const double * deltat);
+    void traj_snap_strait(const double *t0, const double *alpha, const double *x0, const double *xf, const double *t, double *out);
+    void traj_gen(const double *t, const pathpara_str &pathpara, const double *T_orig, double *out);
+
+
+    //for obstacle avoiding
+
+    int flag_pc_cmd_obs;
+	int current_point_obs;
+	int i_mapcruise_obs;
+
+	float points_mapcruise_obs[3][20000];
+	float yaw_mapcruise_obs[20000];
+	int flag_arrive;    //indicates if it arrives
+	float accuracy_arrive;  //the accuracy indicate if arrive to the desired goal
+	int flag_to_global;  //transmit to global planner
+	float current_goal[3]; //the current goal
+	float P_sen_obs[3]; //record the sensed position
+
+
+//    function [t1,y1]=virtual_dynamics(quad_3d_ode, tspan, y0, options, obsta, pathpara, T_traj, current_hdl)
+//
+//
+//    % quad_3d_ode(t, y, obsta, pathpara, T_orig, ctrl_hdl)
+//    % [t1, y1] = ode45(@quad_3d_ode, tspan, y0, options, obsta, pathpara, T_traj, current_hdl);
+//
+//    dt=0.01;
+//
+//    n_state=length(y0);
+//
+//    t1=tspan(1):dt:tspan(end);
+//    n_time=length(t1);
+//
+//    y1=zeros(n_time, n_state);
+//    y=y0;
+//
+//    for i=2:n_time
+//        t=t1(i);
+//        dy = feval(quad_3d_ode, t, y, obsta, pathpara, T_traj, current_hdl);
+//        y=y+dy*dt;
+//        y1(i,:)=y';
+//    end
 
 };
 

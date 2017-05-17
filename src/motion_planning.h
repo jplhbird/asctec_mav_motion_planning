@@ -302,6 +302,11 @@ private:
 	double a_2_in[3];  //?????????
 	//above, the parameters in the pseudo inverse dynamics of attitude control loop
 
+	//2017 May, added for the initialization of SLAM
+	int slam_int; //flag determine if it is the initial time of SLAM
+	int slam_int_instant; //the intial instant
+	double yaw_ini_slam; //the yaw angle at the initial time, when SLAM is available
+
 };
 
 

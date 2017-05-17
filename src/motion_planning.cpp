@@ -153,6 +153,12 @@ pnh_("~/fcu")
 		g_ = 9.8;
     }
 
+
+    //initial instant of SLAM
+    slam_int = 0;
+    yaw_ini_slam = 0;
+    slam_int_instant = 0;
+
 }
 
 
@@ -224,6 +230,31 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 		state_feedback.pose.position.z= imudata->height;
 		state_feedback.velocity.z=imudata->differential_height;
 		state_feedback.pose.orientation =imudata->orientation;
+	}
+
+	//record the initial orientation
+	if (slam_int_instant == 1)
+	{
+		slam_int_instant = 0;
+
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = imudata->orientation.x;
+		quaternion[2] = imudata->orientation.y;
+		quaternion[3] = imudata->orientation.z;
+		quaternion[0] = imudata->orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//the initial yaw angle when the SLAM data is available, ENU frame
+		yaw_ini_slam = gamma_temp[2];
+
 	}
 
 	//publish the external state for position control purpose
@@ -765,9 +796,56 @@ void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 
 	if (flag_pose_source == 2) //indoor, position
 	{
-		state_feedback.pose.position = pose->position;
-		state_feedback.pose.orientation = pose->orientation;
+		//state_feedback.pose.position = pose->position;
+		//state_feedback.pose.orientation = pose->orientation;
+
+		//add the intial yaw angle:
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = pose->orientation.x;
+		quaternion[2] = pose->orientation.y;
+		quaternion[3] = pose->orientation.z;
+		quaternion[0] = pose->orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//revise the yaw angle considering the initial angle
+		gamma_temp[2] = gamma_temp[2] + yaw_ini_slam;
+
+		//convert it to quaternion:
+		double R_temp_2[9];
+		double quaternion_2[4];
+
+		math_function::computeR(&gamma_temp[0], &R_temp_2[0]);
+		math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
+
+		state_feedback.pose.orientation.x = quaternion_2[1];
+		state_feedback.pose.orientation.y = quaternion_2[2];
+		state_feedback.pose.orientation.z = quaternion_2[3];
+		state_feedback.pose.orientation.w = quaternion_2[0];
+
+ ///transform the pose
+		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->position.x) - sin(yaw_ini_slam)*(pose->position.y);
+		state_feedback.pose.position.y = sin(yaw_ini_slam)*(pose->position.x) + cos(yaw_ini_slam)*(pose->position.y);
+		state_feedback.pose.position.z =  pose->position.z;
+
 	}
+
+
+	if (slam_int == 0)
+	{
+		//record the yaw angle only at the intial time
+		slam_int = 1;
+		slam_int_instant = 1;
+
+	}
+
 }
 
 
@@ -775,9 +853,13 @@ void TeleopIMU::odometryCallback(const nav_msgs::OdometryConstPtr& odometry){
 
 	if (flag_pose_source == 2) //indoor, linear velocity
 	{
-		state_feedback.velocity = odometry->twist.twist.linear;
-	}
+		//state_feedback.velocity = odometry->twist.twist.linear;
 
+		//transform from SLAM original frame to NWU frame:
+		state_feedback.velocity.x = cos(yaw_ini_slam)*(odometry->twist.twist.linear.x) - sin(yaw_ini_slam)*(odometry->twist.twist.linear.y);
+		state_feedback.velocity.y = sin(yaw_ini_slam)*(odometry->twist.twist.linear.x) + cos(yaw_ini_slam)*(odometry->twist.twist.linear.y);
+		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
+	}
 }
 
 
