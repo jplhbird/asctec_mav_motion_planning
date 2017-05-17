@@ -13,9 +13,10 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-find_package(cmake_modules REQUIRED)
+find_package(cmake_modules REQUIRED COMPONENTS)
 
-find_package(Eigen REQUIRED)
+find_package(Eigen REQUIRED
+	cmake_modules)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -212,12 +213,34 @@ include_directories(
 # catkin_add_nosetests(test)
 
 
-include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS}
+	src/qpOASES/include)
 
 
 #set(ASCTEC_MAV_MOTION_PLANNING_SRC
 #    src/math_function.cpp
 #    )
+
+#
+# building qpOASES LIBRARY
+#
+set(ASCTEC_MAV_MOTION_PLANNING_SRC
+  src/qpOASES/src/BLASReplacement.cpp
+  src/qpOASES/src/Constraints.cpp
+  src/qpOASES/src/Indexlist.cpp
+  src/qpOASES/src/Matrices.cpp
+  src/qpOASES/src/Options.cpp
+  src/qpOASES/src/QProblemB.cpp
+  src/qpOASES/src/SolutionAnalysis.cpp
+  src/qpOASES/src/SubjectTo.cpp
+  src/qpOASES/src/Bounds.cpp
+  src/qpOASES/src/Flipper.cpp
+  src/qpOASES/src/LAPACKReplacement.cpp
+  src/qpOASES/src/MessageHandling.cpp
+  src/qpOASES/src/OQPinterface.cpp 
+  src/qpOASES/src/QProblem.cpp
+  src/qpOASES/src/SQProblem.cpp
+  src/qpOASES/src/Utils.cpp)
 
 
 
@@ -256,6 +279,11 @@ add_dependencies(test_path_cmd ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPO
 add_dependencies(sim_interface ${PROJECT_NAME}_gencfg)
 
 
+install(
+  DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+)
 
 
 
