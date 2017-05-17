@@ -35,10 +35,10 @@ pnh_("~/fcu")
 	sub=n.subscribe<sensor_msgs::Imu>("/imu/data",10,&TeleopIMU::callBack,this);
 
 	//the topic name is still under discussion, from the SLAM module
-	pose_sub_ = n.subscribe("posefromslam", 1, &TeleopIMU::poseCallback, this);
+	pose_sub_ = n.subscribe("robot_pose", 1, &TeleopIMU::poseCallback, this);
 
 	//the topic name is still under discussion, from the SLAM module
-	odometry_sub_ = n.subscribe<nav_msgs::Odometry>("odometryfromslam", 1, &TeleopIMU::odometryCallback, this);
+	odometry_sub_ = n.subscribe<nav_msgs::Odometry>("/stereo_odometer/odometry", 1, &TeleopIMU::odometryCallback, this);
 	rcdata_sub_ = n.subscribe<asctec_hl_comm::mav_rcdata>("fcu/rcdata", 1, &TeleopIMU::rcdataCallback, this);
 	gps_custom_sub_ =n.subscribe<asctec_hl_comm::GpsCustom> ("fcu/gps_custom", 1, &TeleopIMU::gpsdataCallback, this);
 	imu_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
@@ -792,7 +792,7 @@ void TeleopIMU::LLP_Euclidean(Eigen::Vector3d & LLA)
 }
 
 
-void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
+void TeleopIMU::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
 
 	if (flag_pose_source == 2) //indoor, position
 	{
@@ -806,10 +806,10 @@ void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 		double gamma_temp[3];
 
 		//notice the order of quaternion:
-		quaternion[1] = pose->orientation.x;
-		quaternion[2] = pose->orientation.y;
-		quaternion[3] = pose->orientation.z;
-		quaternion[0] = pose->orientation.w;
+		quaternion[1] = pose->pose.orientation.x;
+		quaternion[2] = pose->pose.orientation.y;
+		quaternion[3] = pose->pose.orientation.z;
+		quaternion[0] = pose->pose.orientation.w;
 
 		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
 		//ENU frame
@@ -830,17 +830,17 @@ void TeleopIMU::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
 		state_feedback.pose.orientation.z = quaternion_2[3];
 		state_feedback.pose.orientation.w = quaternion_2[0];
 
- ///transform the pose
-		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->position.x) - sin(yaw_ini_slam)*(pose->position.y);
-		state_feedback.pose.position.y = sin(yaw_ini_slam)*(pose->position.x) + cos(yaw_ini_slam)*(pose->position.y);
-		state_feedback.pose.position.z =  pose->position.z;
+        //transform the pose
+		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->pose.position.x) - sin(yaw_ini_slam)*(pose->pose.position.y);
+		state_feedback.pose.position.y = sin(yaw_ini_slam)*(pose->pose.position.x) + cos(yaw_ini_slam)*(pose->pose.position.y);
+		state_feedback.pose.position.z =  pose->pose.position.z;
 
 	}
 
 
 	if (slam_int == 0)
 	{
-		//record the yaw angle only at the intial time
+		//record the yaw angle only at the initial time
 		slam_int = 1;
 		slam_int_instant = 1;
 
@@ -859,6 +859,28 @@ void TeleopIMU::odometryCallback(const nav_msgs::OdometryConstPtr& odometry){
 		state_feedback.velocity.x = cos(yaw_ini_slam)*(odometry->twist.twist.linear.x) - sin(yaw_ini_slam)*(odometry->twist.twist.linear.y);
 		state_feedback.velocity.y = sin(yaw_ini_slam)*(odometry->twist.twist.linear.x) + cos(yaw_ini_slam)*(odometry->twist.twist.linear.y);
 		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
+
+		//transform from body-frame to reference frame:
+		state_feedback.velocity.x =  odometry->twist.twist.linear.x;
+		state_feedback.velocity.y =  odometry->twist.twist.linear.y;
+		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
+
+		//convert it to quaternion:
+		double R_temp[9];
+		double q_temp[4];
+
+		//notice the order of quaternion:
+		q_temp[1] = state_feedback.pose.orientation.x;
+		q_temp[2] = state_feedback.pose.orientation.y;
+		q_temp[3] = state_feedback.pose.orientation.z;
+		q_temp[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&q_temp[0], &R_temp[0]);
+
+		state_feedback.velocity.x = R_temp[0]* state_feedback.velocity.x + R_temp[1]*state_feedback.velocity.y + R_temp[2]*state_feedback.velocity.z;
+		state_feedback.velocity.y = R_temp[3]* state_feedback.velocity.x + R_temp[4]*state_feedback.velocity.y + R_temp[5]*state_feedback.velocity.z;
+		state_feedback.velocity.z = R_temp[6]* state_feedback.velocity.x + R_temp[7]*state_feedback.velocity.y + R_temp[8]*state_feedback.velocity.z;
+
 	}
 }
 

@@ -67,7 +67,7 @@ private:
     void flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd);
 
 	//the topic name is still under discussion, from the SLAM module
-	void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
+	void poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose);
 
 	//the topic name is still under discussion, from the SLAM module
 	void odometryCallback(const nav_msgs::OdometryConstPtr& odometry);
