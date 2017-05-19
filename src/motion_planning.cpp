@@ -159,6 +159,12 @@ pnh_("~/fcu")
     yaw_ini_slam = 0;
     slam_int_instant = 0;
 
+    state_feedback.pose.orientation.x=0;
+    state_feedback.pose.orientation.y=0;
+    state_feedback.pose.orientation.z=0;
+    state_feedback.pose.orientation.w=1;
+
+
 }
 
 
@@ -340,9 +346,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	T_sampling = time_body-time_doby_last;
 	time_doby_last = time_body;
 
-	T_sampling = 0.05;
+	//T_sampling = 0.05;
 
- 	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ 	//ROS_INFO_STREAM("current time (time_body)"<<(time_body));
  	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
@@ -428,10 +434,10 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
 		//note the rcdata is not the same with the command sent to LL from HL
-		msg.x =  gamma_nom[1];  //pitch angle
-		msg.y =  -gamma_nom[0];   //opposite direction, roll angle
-		msg.yaw = -omega_com[2];   //opposite direction, yaw rate
-		msg.z = 0.5*G/(m*g_);
+		//msg.x =  gamma_nom[1];  //pitch angle
+		//msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+		//msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+		//msg.z = 0.5*G/(m*g_);
 	}
 
 
@@ -588,9 +594,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		//ENU frame
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
-		ROS_INFO_STREAM("feedback roll/degree"<<gamma_temp[0]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback pitch/degree"<<gamma_temp[1]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback yaw/degree"<<gamma_temp[2]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
 
         //ENU frame, in rad
 		global_position_cmd.yaw = (float)gamma_temp[2];
@@ -600,11 +606,11 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	if (flag_rc_cmd == 1)
 	{
 		//only receive the commands from RC transmitter
-		ROS_INFO_STREAM("cmd , x: "<<msg.x);
-		ROS_INFO_STREAM("cmd  , y: "<<msg.y);
-		ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
-		ROS_INFO_STREAM("cmd  , z: "<<msg.z);
-		ROS_INFO_STREAM("global_position_cmd  , z: "<<global_position_cmd.z);
+		//ROS_INFO_STREAM("cmd , x: "<<msg.x);
+		//ROS_INFO_STREAM("cmd  , y: "<<msg.y);
+		//ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
+		//ROS_INFO_STREAM("cmd  , z: "<<msg.z);
+		//ROS_INFO_STREAM("global_position_cmd  , z: "<<global_position_cmd.z);
 		//llcmd_pub_vel.publish(msg);
 	}
 
