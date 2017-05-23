@@ -883,9 +883,9 @@ void TeleopIMU::odometryCallback(const nav_msgs::OdometryConstPtr& odometry){
 
 		math_function::quaternion_to_R(&q_temp[0], &R_temp[0]);
 
-		state_feedback.velocity.x = R_temp[0]* state_feedback.velocity.x + R_temp[1]*state_feedback.velocity.y + R_temp[2]*state_feedback.velocity.z;
-		state_feedback.velocity.y = R_temp[3]* state_feedback.velocity.x + R_temp[4]*state_feedback.velocity.y + R_temp[5]*state_feedback.velocity.z;
-		state_feedback.velocity.z = R_temp[6]* state_feedback.velocity.x + R_temp[7]*state_feedback.velocity.y + R_temp[8]*state_feedback.velocity.z;
+		state_feedback.velocity.x = R_temp[0]* odometry->twist.twist.linear.x + R_temp[1]*odometry->twist.twist.linear.y + R_temp[2]*odometry->twist.twist.linear.z;
+		state_feedback.velocity.y = R_temp[3]* odometry->twist.twist.linear.x + R_temp[4]*odometry->twist.twist.linear.y + R_temp[5]*odometry->twist.twist.linear.z;
+		state_feedback.velocity.z = R_temp[6]* odometry->twist.twist.linear.x + R_temp[7]*odometry->twist.twist.linear.y + R_temp[8]*odometry->twist.twist.linear.z;
 
 	}
 }
