@@ -15,11 +15,14 @@ sim_interface::sim_interface(){
 
 	rcdata_pub_ = n_sim.advertise<asctec_hl_comm::mav_rcdata>("fcu/rcdata",1);
 	imu_pub_= n_sim.advertise<asctec_hl_comm::mav_imu>("fcu/imu_custom", 1);
-	pose_pub_= n_sim.advertise<geometry_msgs::Pose>("posefromslam", 1);
+	pose_pub_= n_sim.advertise<geometry_msgs::PoseStamped>("robot_pose", 1);
 	odometry_pub_ = n_sim.advertise<nav_msgs::Odometry>("odometryfromslam", 10);
 	cmd_sim_pub = n_sim.advertise<geometry_msgs::PoseStamped>("/pelican/command/pose", 10);
 
 	path_sim_pub = n_sim.advertise<nav_msgs::Path>("positioncmd", 1);  //test only
+
+
+	pcl_pub = n_sim.advertise<sensor_msgs::PointCloud2> ("pcl_output", 1);   //test only, simulate the point cloud data
 
 
 
@@ -74,9 +77,31 @@ void sim_interface::cmdcallback(const asctec_hl_comm::mav_ctrlConstPtr& cmddata)
 
 	  geometry_msgs::PoseStamped posecmd;
 
-	  posecmd.pose.position.x = cmddata->x;
-	  posecmd.pose.position.y = cmddata->y;
-	  posecmd.pose.position.z = cmddata->z;
+
+	  //modified on June, 10, 2017
+	  //the onboard computer directly send the path points to HL, thus the data contains starting and end data, should be excluded from the commands
+	  //the starting part:
+	  //the end part:
+
+	  //convert to int type to avoid conflict
+
+	  int protocal_start_end[6];
+	  protocal_start_end[0] = 1000*cmddata->x;
+	  protocal_start_end[1] = 1000*cmddata->y;
+	  protocal_start_end[2] = 1000*cmddata->z;
+
+	  if  ( ( (protocal_start_end[0] == 999999) &  (protocal_start_end[1] == 999999) & (protocal_start_end[2] == 999999) )
+		  |( (protocal_start_end[0] == 99999) &  (protocal_start_end[1] == 99999) & (protocal_start_end[2] == 99999))  )
+	  {
+
+	  }
+	  else
+	  {
+
+		  posecmd.pose.position.x = cmddata->x;
+		  posecmd.pose.position.y = cmddata->y;
+		  posecmd.pose.position.z = cmddata->z;
+	  }
 
 
 	  double R_temp[9];
@@ -96,15 +121,23 @@ void sim_interface::cmdcallback(const asctec_hl_comm::mav_ctrlConstPtr& cmddata)
 	  printf( "planned quaternion = [ %e, %e, %e, %e ]\n\n",
 			  posecmd.pose.orientation.x,posecmd.pose.orientation.y, posecmd.pose.orientation.z, posecmd.pose.orientation.w);
 
-	  cmd_sim_pub.publish(posecmd);
+	  if  ( ( (protocal_start_end[0] == 999999) &  (protocal_start_end[1] == 999999) & (protocal_start_end[2] == 999999) )
+		  |( (protocal_start_end[0] == 99999) &  (protocal_start_end[1] == 99999) & (protocal_start_end[2] == 99999))  )
+	  {
+
+	  }
+	  else
+	  {
+		  cmd_sim_pub.publish(posecmd);
+	  }
 }
 
 void sim_interface::odometry_sim_callback(const nav_msgs::OdometryConstPtr&  odometrydata){
-	geometry_msgs::Pose slampose;
+	geometry_msgs::PoseStamped slampose;
 	nav_msgs::Odometry slamodometry;
 	asctec_hl_comm::mav_imu sim_imu;
 
-	slampose = odometrydata->pose.pose;
+	slampose.pose = odometrydata->pose.pose;
 	slamodometry =  *odometrydata;
 
  	pose_pub_.publish(slampose);

@@ -35,6 +35,11 @@
 #include <sensor_fusion_comm/ExtState.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
 
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#include <sensor_msgs/PointCloud2.h>
+
 
 // dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
@@ -53,6 +58,10 @@ int main(int argc, char **argv)
 
   ros::NodeHandle n;
   ros::Publisher path_sim_pub = n.advertise<nav_msgs::Path>("positioncmd", 1);    //test only, publish the path information
+
+  ros::Publisher pcl_pub = n.advertise<sensor_msgs::PointCloud2> ("pcl_output", 1);   //test only, simulate the point cloud data
+  pcl::PointCloud<pcl::PointXYZ> cloud;
+  sensor_msgs::PointCloud2 output;
 
 
    ros::Rate loop_rate(0.1);
@@ -77,10 +86,13 @@ int main(int argc, char **argv)
     	float cmdp_c[100][3];
    		float yawcmd_c[100];
 
-    	float cmdp[6][3]={{0,0,5},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,10,2}};
-    	float yawcmd[6] = {0,0,0.2,0,0,0.1}; //units: rad
+//    	float cmdp[6][3]={{0,0,5},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,10,2}};
+//    	float yawcmd[6] = {0,0,0.2,0,0,0.1}; //units: rad
 
-    	totalno = 6;
+    	float cmdp[1][3]={{0,0,5}};
+        float yawcmd[1] = {0}; //units: rad
+
+    	totalno = 1;
 
 
     	int choice = 1;
@@ -195,6 +207,33 @@ int main(int argc, char **argv)
 
 		path_sim_pub.publish(gui_path);
 		ROS_INFO_STREAM("send path points");
+
+
+
+
+		//simulate the point cloud and publish it to point cloud2
+	    // Fill in the cloud data
+	    cloud.width  = 2;
+	    cloud.height = 1;
+	    cloud.points.resize(cloud.width * cloud.height);
+
+	    for (size_t i = 0; i < cloud.points.size (); ++i)
+	    {
+	        cloud.points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
+	        cloud.points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
+	        cloud.points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
+
+	        cloud.points[i].x = 1;
+	        cloud.points[i].y = 1;
+	        cloud.points[i].z = 1;
+	    }
+
+	    //Convert the cloud to ROS message
+	    pcl::toROSMsg(cloud, output);
+	    output.header.frame_id = "odom";
+
+	    pcl_pub.publish(output);
+
 
     }
 

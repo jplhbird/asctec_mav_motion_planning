@@ -37,6 +37,11 @@
 #include <sensor_fusion_comm/ExtState.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
 
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#include <sensor_msgs/PointCloud2.h>
+
 
 // dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
@@ -68,6 +73,7 @@ private:
     ros::Publisher odometry_pub_;  //simulate the pose from slam module
     ros::Publisher cmd_sim_pub;  //pose cmd to the simulator UAV
 
+    ros::Publisher pcl_pub;  //Simulate the point cloud data
 
 
 

@@ -23,7 +23,7 @@ Minimumsnap::Minimumsnap()
 	flag_cmd_pub = nh_minsnap.advertise<asctec_mav_motion_planning::flag_cmd>("flag_cmd",1); //flag determine which device will sends the position cmd
 
 	//the topic name is still under discussion, from the SLAM module
-	pose_sub_ = nh_minsnap.subscribe("posefromslam", 1, &Minimumsnap::poseCallback, this);
+	pose_sub_ = nh_minsnap.subscribe("robot_pose", 1, &Minimumsnap::poseCallback, this);
 
 	//the topic name is still under discussion:
 	cmd_sub_ = nh_minsnap.subscribe<nav_msgs::Path>("positioncmd", 1, &Minimumsnap::cmdCallback, this);
@@ -33,6 +33,11 @@ Minimumsnap::Minimumsnap()
 
 	//gps environment:
 	ext_state_sub_=nh_minsnap.subscribe<sensor_fusion_comm::ExtState>("fcu/state", 1, &Minimumsnap::extstateCallback, this); //external state, to interface of asctec
+
+	//Subscribe the point cloud2:
+	pc_sub_ =nh_minsnap.subscribe<sensor_msgs::PointCloud2>  ("pcl_output", 1, &Minimumsnap::pcCallback, this);
+	//publish the point cloud:
+	point_could_pub_ = nh_minsnap.advertise<sensor_msgs::PointCloud>("point_could_pub",1);
 
 
 	//init the flag values
@@ -77,6 +82,8 @@ Minimumsnap::Minimumsnap()
     i_mapcruise_obs = 0;
     flag_to_global = 0;
 
+    enable_obs_avoid = 1;  //during test, this flag can enable or disable the obstacle avoiding module
+
 }
 
 Minimumsnap::~Minimumsnap()
@@ -118,189 +125,195 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	//use the following function:
 	//trajectory planning of a strait line from start point to end point, minimum snap trajectory
 	//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
- 	if (flag_pc_cmd==1)
- 	{
-// 		ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
-//		//record the yaw angle at the beginning of each line:
-//		if (i_jump_no==20)
-//		{
-//			reset_yaw_control();
-//			//time need to rotate:
-//			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
-//
-//			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
-//			i_jump_no=30;
-//
-//			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
-//			ROS_INFO_STREAM("yaw_6DOF_init[i]"<<(yaw_6DOF_init));
-//		}
-//
-//
-//		if ((time_body<=time_current[0]) && (i_jump_no==30))
-//		{
-//			//rotate the yaw angle to the set angle:
-//			rotate_yaw_mapcruise(current_point);
-//			//i_jump_no=40;
-//			ROS_INFO_STREAM("rotate_yaw_mapcruise");
-//
-//		}
-//
-//		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2.0))
-//		{
-//								//time need to line:
-//			timearray__mapcruise[2*current_point+1]= time_body+
-//			sqrt(
-//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
-//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
-//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
-//			)/velocity_mapcruise[current_point];
-//
-//			time_current[2]= time_body+
-//			sqrt(
-//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
-//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
-//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
-//			)/velocity_mapcruise[current_point];
-//
-//			//time_body=time_body+T_sampling;
-//
-//			i_jump_no=50;
-//
-//		}
-//
-//
-//
-//		//line:
-//		if ((time_body>time_current[0]+2.0)&& (time_body<=time_current[2]) && (i_jump_no==50))
-//		{
-//			int j;
-//			//minimum snap trajectory:
-//			for(j=0;j<3;j++)
-//			{
-//				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
-//				P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
-//				timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
-//				P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
-//			}
-//			//time_body =time_body+T_sampling;
-//			//i_jump_no=100;
-//		}
-//
-//		if ((time_body>time_current[2])&& (time_body<=5.0+time_current[2]) && (i_jump_no==50))
-//		{
-//			//hold on:
-//			if((time_body>=4.8+time_current[2])&&(i_jump_no==50))
-//			{
-//				//next line:
-//				current_point++;
-//
-//				i_jump_no=20;
-//
-//				time_current[0]=0;
-//				time_current[2]=0;
-//				time_current[1]=0;
-//			}
-//
-//			if(current_point>=i_mapcruise)
-//			{
-//				//finish cruise:
-//				Pnomflag =1;
-//
-//				asctec_mav_motion_planning::flag_cmd flag_topic;
-//				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
-//				flag_cmd_pub.publish(flag_topic);
-//
-//				flag_pc_cmd=0;
-//				time_body =0;
-//				time_doby_last=0;
-//
-//
-//			}
-//
-//			//time_body =time_body+T_sampling;
-//		}
 
-		asctec_hl_comm::mav_ctrl msg;
-
-		if(current_point==-1)
+	if (enable_obs_avoid == 0)
+	{
+		if (flag_pc_cmd==1)
 		{
-			//important, notice the unit and the definition of the coordinate frame:
-			msg.x = 999.999;  //must give a value to P_nom, or it will be zero
-			msg.y = 999.999;
-			msg.z = 999.999;
-			msg.yaw = 0;
-			msg.type = asctec_hl_comm::mav_ctrl::position;
-			//unit:m/s
-			msg.v_max_xy = 5;
-			msg.v_max_z= 5;
+	// 		ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+	//		//record the yaw angle at the beginning of each line:
+	//		if (i_jump_no==20)
+	//		{
+	//			reset_yaw_control();
+	//			//time need to rotate:
+	//			timearray__mapcruise[2*current_point]= time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
+	//
+	//			time_current[0]=time_body+ abs(yaw_mapcruise[current_point]-yaw_6DOF_init)/0.1745;
+	//			i_jump_no=30;
+	//
+	//			ROS_INFO_STREAM("yaw_mapcruise[i]"<<(yaw_mapcruise[current_point]));
+	//			ROS_INFO_STREAM("yaw_6DOF_init[i]"<<(yaw_6DOF_init));
+	//		}
+	//
+	//
+	//		if ((time_body<=time_current[0]) && (i_jump_no==30))
+	//		{
+	//			//rotate the yaw angle to the set angle:
+	//			rotate_yaw_mapcruise(current_point);
+	//			//i_jump_no=40;
+	//			ROS_INFO_STREAM("rotate_yaw_mapcruise");
+	//
+	//		}
+	//
+	//		if ((time_body>time_current[0])&& (time_body<=time_current[0]+2.0))
+	//		{
+	//								//time need to line:
+	//			timearray__mapcruise[2*current_point+1]= time_body+
+	//			sqrt(
+	//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+	//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+	//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+	//			)/velocity_mapcruise[current_point];
+	//
+	//			time_current[2]= time_body+
+	//			sqrt(
+	//			(P_ini_cruise[0]- points_mapcruise[0][current_point])*(P_ini_cruise[0]- points_mapcruise[0][current_point])+
+	//			(P_ini_cruise[1]-points_mapcruise[1][current_point])*(P_ini_cruise[1]- points_mapcruise[1][current_point])+
+	//			(P_ini_cruise[2]-points_mapcruise[2][current_point])*(P_ini_cruise[2]- points_mapcruise[2][current_point])
+	//			)/velocity_mapcruise[current_point];
+	//
+	//			//time_body=time_body+T_sampling;
+	//
+	//			i_jump_no=50;
+	//
+	//		}
+	//
+	//
+	//
+	//		//line:
+	//		if ((time_body>time_current[0]+2.0)&& (time_body<=time_current[2]) && (i_jump_no==50))
+	//		{
+	//			int j;
+	//			//minimum snap trajectory:
+	//			for(j=0;j<3;j++)
+	//			{
+	//				//float minimumsnap_line(float t0, float alpha, float x0, float xf, float time)
+	//				P_nom[j]= minimumsnap_line(timearray__mapcruise[2*current_point]+2,
+	//				timearray__mapcruise[2*current_point+1]-timearray__mapcruise[2*current_point]-2,
+	//				P_ini_cruise[j], points_mapcruise[j][current_point], time_body);
+	//			}
+	//			//time_body =time_body+T_sampling;
+	//			//i_jump_no=100;
+	//		}
+	//
+	//		if ((time_body>time_current[2])&& (time_body<=5.0+time_current[2]) && (i_jump_no==50))
+	//		{
+	//			//hold on:
+	//			if((time_body>=4.8+time_current[2])&&(i_jump_no==50))
+	//			{
+	//				//next line:
+	//				current_point++;
+	//
+	//				i_jump_no=20;
+	//
+	//				time_current[0]=0;
+	//				time_current[2]=0;
+	//				time_current[1]=0;
+	//			}
+	//
+	//			if(current_point>=i_mapcruise)
+	//			{
+	//				//finish cruise:
+	//				Pnomflag =1;
+	//
+	//				asctec_mav_motion_planning::flag_cmd flag_topic;
+	//				flag_topic.flag=2; //1: position is give by PC, 2: position is give by RC transmitter
+	//				flag_cmd_pub.publish(flag_topic);
+	//
+	//				flag_pc_cmd=0;
+	//				time_body =0;
+	//				time_doby_last=0;
+	//
+	//
+	//			}
+	//
+	//			//time_body =time_body+T_sampling;
+	//		}
 
-			//taj_pub.publish(msg);
+			asctec_hl_comm::mav_ctrl msg;
 
-			//publish the msg for the self-developed driver
-			control_pub.publish(msg);
+			if(current_point==-1)
+			{
+				//important, notice the unit and the definition of the coordinate frame:
+				msg.x = 999.999;  //must give a value to P_nom, or it will be zero
+				msg.y = 999.999;
+				msg.z = 999.999;
+				msg.yaw = 0;
+				msg.type = asctec_hl_comm::mav_ctrl::position;
+				//unit:m/s
+				msg.v_max_xy = 5;
+				msg.v_max_z= 5;
 
-			//show it in terminal:
-			ROS_INFO_STREAM("beginning");
+				//taj_pub.publish(msg);
 
-			current_point++;
-		}
+				//publish the msg for the self-developed driver
+				control_pub.publish(msg);
 
+				//show it in terminal:
+				ROS_INFO_STREAM("beginning");
 
-		else if(current_point < i_mapcruise)
-		{
-			//important, notice the unit and the definition of the coordinate frame:
-			msg.x = points_mapcruise[0][current_point];  //must give a value to P_nom, or it will be zero?
-			msg.y = points_mapcruise[1][current_point];
-			msg.z = points_mapcruise[2][current_point];
-			msg.yaw = yaw_mapcruise[current_point];
-			msg.type = asctec_hl_comm::mav_ctrl::position;
-			//unit:m/s
-			msg.v_max_xy = 5;
-			msg.v_max_z= 5;
-
-			//taj_pub.publish(msg);
-
-			//publish the msg for the self-developed driver
-			control_pub.publish(msg);
-
-			//show it in terminal:
-			ROS_INFO_STREAM("current no "<<current_point);
-			ROS_INFO_STREAM("cmd, x: "<<msg.x);
-			ROS_INFO_STREAM("cmd, y: "<<msg.y);
-			ROS_INFO_STREAM("cmd, z: "<<msg.z);
-			ROS_INFO_STREAM("cmd, yaw: "<<msg.yaw);
-
-			current_point++;
-
-		}
-		else if (current_point >= i_mapcruise)
-		{
-			current_point = -1;
-			flag_pc_cmd = 0;
+				current_point++;
+			}
 
 
-			//important, notice the unit and the definition of the coordinate frame:
-			msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
-			msg.y = 99.999;
-			msg.z = 99.999;
-			msg.yaw = -(200.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, the accuracy information for the low level controller
-			msg.type = asctec_hl_comm::mav_ctrl::position;
-			//unit:m/s
-			msg.v_max_xy = 5;
-			msg.v_max_z= 5;
+			else if(current_point < i_mapcruise)
+			{
+				//important, notice the unit and the definition of the coordinate frame:
+				msg.x = points_mapcruise[0][current_point];  //must give a value to P_nom, or it will be zero?
+				msg.y = points_mapcruise[1][current_point];
+				msg.z = points_mapcruise[2][current_point];
+				msg.yaw = yaw_mapcruise[current_point];
+				msg.type = asctec_hl_comm::mav_ctrl::position;
+				//unit:m/s
+				msg.v_max_xy = 5;
+				msg.v_max_z= 5;
 
-			//taj_pub.publish(msg);
+				//taj_pub.publish(msg);
 
-			//publish the msg for the self-developed driver
-			control_pub.publish(msg);
+				//publish the msg for the self-developed driver
+				control_pub.publish(msg);
 
-			//show it in terminal:
-			ROS_INFO_STREAM("end");
+				//show it in terminal:
+				ROS_INFO_STREAM("current no "<<current_point);
+				ROS_INFO_STREAM("cmd, x: "<<msg.x);
+				ROS_INFO_STREAM("cmd, y: "<<msg.y);
+				ROS_INFO_STREAM("cmd, z: "<<msg.z);
+				ROS_INFO_STREAM("cmd, yaw: "<<msg.yaw);
+
+				current_point++;
+
+			}
+			else if (current_point >= i_mapcruise)
+			{
+				current_point = -1;
+				flag_pc_cmd = 0;
+
+
+				//important, notice the unit and the definition of the coordinate frame:
+				msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
+				msg.y = 99.999;
+				msg.z = 99.999;
+				msg.yaw = -(200.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, the accuracy information for the low level controller
+				msg.type = asctec_hl_comm::mav_ctrl::position;
+				//unit:m/s
+				msg.v_max_xy = 5;
+				msg.v_max_z= 5;
+
+				//taj_pub.publish(msg);
+
+				//publish the msg for the self-developed driver
+				control_pub.publish(msg);
+
+				//show it in terminal:
+				ROS_INFO_STREAM("end");
+			}
 		}
 	}
 
 
 
+ 	//obstacle avoiding code:
+ 	if(enable_obs_avoid == 1 )
  	{ //obstacle avoiding code:
 
 		if (flag_pc_cmd_obs==1)
@@ -320,7 +333,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 					double y_ini[12]; //initial state of virtual dynamics
 					double u_virtual[3]; // input of the virtual dynamics
 					pathpara_str pathpara_received; //set the path parameters for the virtual dynamics
-					sensor_msgs::PointCloud obstacle_received;
+					//sensor_msgs::PointCloud obstacle_received;
 					double tspan_output;
 					double t_array[20000];
 					double y_array[20000][12];
@@ -359,6 +372,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 
 					//show it in terminal:
 					ROS_INFO_STREAM("beginning, obstacle avoiding ");
+					ROS_INFO_STREAM("sensed x position"<<P_sen_obs[0]);
+					ROS_INFO_STREAM("expected z position"<<points_mapcruise[2][current_point_obs]);
 
 					for (int bb =0; bb <n_distime; bb = bb+100)
 					{
@@ -557,7 +572,7 @@ float Minimumsnap::minimumsnap_line(float t0, float alpha, float x0, float xf, f
 
 
 
-void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
+void Minimumsnap::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
 
 
 	//outdoor or indoor:
@@ -566,10 +581,15 @@ void Minimumsnap::poseCallback(const geometry_msgs::Pose::ConstPtr& pose){
     //2: indoor, SLAM module provides the position information
     if (flag_pose_source == 2)
     {
-		P_sen[0]=pose->position.x;
-		P_sen[1]=pose->position.y;
-		P_sen[2]=pose->position.z;
+		P_sen[0]=pose->pose.position.x;
+		P_sen[1]=pose->pose.position.y;
+		P_sen[2]=pose->pose.position.z;
+
     }
+
+    P_sen_obs[0]= pose->pose.position.x;
+    P_sen_obs[1]= pose->pose.position.y;
+    P_sen_obs[2]= pose->pose.position.z;
 
     if (slam_int ==0 )
     {
@@ -592,9 +612,9 @@ void Minimumsnap::extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& e
 		P_sen[2]=ext_state->pose.position.z;
     }
 
-    P_sen_obs[0]=ext_state->pose.position.x;
-    P_sen_obs[1]=ext_state->pose.position.y;
-    P_sen_obs[2]=ext_state->pose.position.z;
+//    P_sen_obs[0]=ext_state->pose.position.x;
+//    P_sen_obs[1]=ext_state->pose.position.y;
+//    P_sen_obs[2]=ext_state->pose.position.z;
 
 }
 
@@ -697,7 +717,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 			double y_ini[12]; //initial state of virtual dynamics
 			double u_virtual[3]; // input of the virtual dynamics
 			pathpara_str pathpara_received; //set the path parameters for the virtual dynamics
-			sensor_msgs::PointCloud obstacle_received;
+			//sensor_msgs::PointCloud obstacle_received;
 			double tspan_output;
 			double t_array[20000];
 			double y_array[20000][12];
@@ -719,7 +739,7 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 				y_ini[aa] =  0;
 			}
 
-			virtual_dynamics(&y_ini[0], &u_virtual[0], pathpara_received, obstacle_received, &tspan_output,  & t_array[0], & y_array[0][0], &n_discretetime);
+			//virtual_dynamics(&y_ini[0], &u_virtual[0], pathpara_received, obstacle_received, &tspan_output,  & t_array[0], & y_array[0][0], &n_discretetime);
 
 			for (int bb =0; bb <20000; bb = bb+100)
 			{
@@ -830,7 +850,7 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 	//        y1(i,:)=y';
 	//    end
 
-	double dt =0.05;  //sampling time
+	double dt =0.05;  //sampling time, can be modified according to the actual conditions
 	int n_state=12; //the dimension of state space
 	double y[12]; //the state of the virtual dynamics, each
 	double u[3]; //the input of the virtual dynamics, each time instant
@@ -845,6 +865,8 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 
 	*tspan = T_orig + 20;  //the actual time > average time
 	int n_time = int((* tspan)/dt);
+
+	* n_dtime = n_time;
 
 	*t1 = 0;
 	for(int i = 1; i < n_time; i++)
@@ -877,11 +899,36 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 			trajd_i.trajd_2d[k] = out_traj_gen[k+6];
 			trajd_i.trajd_3d[k] = out_traj_gen[k+9];
 			trajd_i.trajd_4d[k] = out_traj_gen[k+12];
+
+			ROS_INFO_STREAM("NO. "<<i);
+			ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
 		}
+
+
 
 	    int n_ob;
 
+
+	    //test code:
+//		for (int i=0; i<3; i++){
+//			 trajd_i.trajd_0d[i] =0.5;
+//		     trajd_i.trajd_1d[i]=0.5;
+//			  trajd_i.trajd_2d[i]=0.5;
+//			 trajd_i.trajd_3d[i]=0.5;
+//			 trajd_i.trajd_4d[i]=0.5;
+//		}
+//		for (int i=0; i<12; i++){
+//			y[i] = 0.9;
+//		}
+
+
 	    virtual_Control(trajd_i, &y[0], obstac, &u[0]);
+
+	    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
+
+
+
+
 		virtual_dynamics_onestep(&y[0], &u[0], & dt); //dynamics at each time
 
 		for (int row=0; row<12; row++)
@@ -955,10 +1002,17 @@ void Minimumsnap::traj_gen(const double *t, const pathpara_str &pathpara, const 
 
 			traj_snap_strait(&starttime, &duration, &x0, &xf, &t_i, &out_snap[0]);
 			pos[i] = out_snap[0];
-			pos[i] = out_snap[1];
+			vel[i] = out_snap[1];
 			acc[i] = out_snap[2];
 			dacc[i] = out_snap[3];
 			d2acc[i] = out_snap[4];
+
+//			ROS_INFO_STREAM("x0 "<<x0);
+//			ROS_INFO_STREAM("xf "<<xf);
+//			ROS_INFO_STREAM("t_i "<<t_i);
+//			ROS_INFO_STREAM("duration "<<duration);
+//			ROS_INFO_STREAM("starttime "<<starttime);
+//			ROS_INFO_STREAM("pos[i] "<<pos[i]);
 
 		}
 
@@ -1029,6 +1083,12 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 		rhatdd[i] = trajd_i.trajd_2d[i];
 		rhatddd[i] = trajd_i.trajd_3d[i];
 		rhatdddd[i] = trajd_i.trajd_4d[i];
+
+//		rhat[i] = 2;
+//		rhatd[i] = 2;
+//		rhatdd[i] = 2;
+//		rhatddd[i] = 2;
+//		rhatdddd[i] = 2;
 	}
 
 
@@ -1040,6 +1100,12 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 		rd[i] = *(y+i+3);
 		rdd[i] = *(y+i+6);
 		rddd[i] = *(y+i+9);
+
+		//thest the code
+//		r[i] = 1;
+//		rd[i] = 1;
+//		rdd[i] = 1;
+//		rddd[i] = 1;
 	}
 
 	//parameters in the controller
@@ -1058,6 +1124,8 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	{
 		v_nom[i] = rhatdddd[i]-k1*(r[i]-rhat[i])-k2*(rd[i]-rhatd[i])-k3*(rdd[i]-rhatdd[i])-k4*(rddd[i]-rhatddd[i]);
 	}
+
+	printf( "\n v_nom= [ %e, %e, %e ] \n", v_nom[0], v_nom[1], v_nom[2] );
 
 	//parameter:
 	double Ds=0.5;
@@ -1103,7 +1171,7 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    double u_x[4], u_y[4], u_z[4];
 	    u_x[0]=r[0]-ob[0]; u_x[1] =rd[0]; u_x[2] =rdd[0];  u_x[3] =rddd[0];
 	    u_y[0]=r[1]-ob[1]; u_y[1] =rd[1]; u_y[2] =rdd[1];  u_y[3] =rddd[1];
-	    u_z[0]=r[2]-ob[2]; u_z[2] =rd[2]; u_z[2] =rdd[2];  u_z[3] =rddd[2];
+	    u_z[0]=r[2]-ob[2]; u_z[1] =rd[2]; u_z[2] =rdd[2];  u_z[3] =rddd[2];
 
 	    cbf_planning(&u_x[0],  &h_x[0]);
 	    cbf_planning(&u_y[0],  &h_y[0]);
@@ -1114,6 +1182,17 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    dh = h_x[1]+h_y[1]+h_z[1]/(cz*cz*cz*cz);
 	    ddh = h_x[2]+h_y[2]+h_z[2]/(cz*cz*cz*cz);
 	    dddh = h_x[3]+h_y[3]+h_z[3]/(cz*cz*cz*cz);
+
+
+	    printf( "\n h_x= [ %e, %e, %e, %e ] \n", h_x[0], h_x[1], h_x[2], h_x[3]);
+	    printf( "\n  h_y= [ %e, %e, %e, %e ] \n", h_y[0], h_y[1], h_y[2], h_y[3]);
+	    printf( "\n  h_z= [ %e, %e, %e, %e ] \n", h_z[0], h_z[1], h_z[2], h_z[3]);
+	    printf( "\n  u_z= [ %e, %e, %e, %e ] \n", u_z[0], u_z[1], u_z[2], u_z[3]);
+	    printf( "\n  u_y= [ %e, %e, %e, %e ] \n", u_y[0], u_y[1], u_y[2], u_y[3]);
+	    printf( "\n  u_x= [ %e, %e, %e, %e ] \n", u_x[0], u_x[1], u_x[2], u_x[3]);
+
+		printf( "\n h, dh, ddh, dddh= [ %e, %e, %e , %e] \n", h, dh, ddh, dddh);
+
 
 	    //	cbf_planning(const double *u,  double *out);
 
@@ -1187,9 +1266,13 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	for (int iqp = 0; iqp < n_ob; iqp ++ ){
 		for (int cqp = 0; cqp < 3; cqp ++ ){
 			A1_[iqp*3+cqp] = A_n[iqp][cqp];
+
 		}
 
 		b1_[iqp] = b_n[iqp];
+
+		printf( "\n b matrix = [ %e  ]", b1_[iqp] );
+		printf( "\n A matrix = [ %e, %e , %e   ]", A1_[iqp*3+0], A1_[iqp*3+1], A1_[iqp*3+2]);
 	}
 
 
@@ -1210,7 +1293,9 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 
 	for (int i=0; i<3; i++)
 	{
-		*(u_virutal+i) = uOpt[i];
+		*(u_virutal+i) = uOpt[i] + v_nom[i];
+
+		//*(u_virutal+i) = 1;
 	}
 
 }
@@ -1347,7 +1432,7 @@ void Minimumsnap::traj_snap_strait(const double *t0, const double *alpha, const 
 
 	double x_i, x_d, x_dd, x_ddd, x_dddd;
 
-	x_i = *x0+ (*xf-*x0) * x_tilde;
+	x_i = (*x0)+ ((*xf)-(*x0)) * x_tilde;
 	x_d = x_tilde_d/(*alpha);
 	x_dd = x_tilde_dd/((*alpha)*(*alpha));
 	x_ddd = x_tilde_ddd/((*alpha)*(*alpha)*(*alpha));
@@ -1358,6 +1443,14 @@ void Minimumsnap::traj_snap_strait(const double *t0, const double *alpha, const 
 	*(out+2) = x_dd;
 	*(out+3) = x_ddd;
 	*(out+4) = x_dddd;
+
+//	ROS_INFO_STREAM("*x0 "<<*x0);
+//	ROS_INFO_STREAM("*xf "<<*xf);
+//	ROS_INFO_STREAM("*t "<<*t);
+//	ROS_INFO_STREAM("*t0 "<<*t0);
+//	ROS_INFO_STREAM("*alpha "<<*alpha);
+//	ROS_INFO_STREAM("**out "<<*out);
+
 }
 
 
@@ -1381,6 +1474,25 @@ void Minimumsnap::cbf_planning(const double *u,  double *out)
 	*(out+1)=dh;
 	*(out+2)=ddh;
 	*(out+3)=dddh;
+}
+
+void Minimumsnap::pcCallback(const sensor_msgs::PointCloud2ConstPtr& pc2_obsta)
+{
+	sensor_msgs::PointCloud pc_obsta;
+	sensor_msgs::PointCloud2 pc2;
+	pc2.data =  pc2_obsta->data;
+	pc2.fields =  pc2_obsta->fields;
+	pc2.header =  pc2_obsta->header;
+	pc2.height =  pc2_obsta->height;
+	pc2.is_bigendian =  pc2_obsta->is_bigendian;
+	pc2.is_dense =  pc2_obsta->is_dense;
+	pc2.point_step =  pc2_obsta->point_step;
+	pc2.row_step =  pc2_obsta->row_step;
+	pc2.width =  pc2_obsta->width;
+
+	sensor_msgs::convertPointCloud2ToPointCloud(pc2,  obstacle_received);
+
+	point_could_pub_.publish(obstacle_received);
 }
 
 

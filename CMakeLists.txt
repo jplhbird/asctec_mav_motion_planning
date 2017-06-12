@@ -11,12 +11,15 @@ find_package(catkin REQUIRED COMPONENTS
   asctec_hl_comm
   dynamic_reconfigure
   message_generation
+  pcl_conversions
+  pcl_ros
 )
 
 find_package(cmake_modules REQUIRED COMPONENTS)
 
 find_package(Eigen REQUIRED
 	cmake_modules)
+ 
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -136,6 +139,12 @@ include_directories(
   ${Eigen_INCLUDE_DIRS}
 )
 
+include_directories(include${PCL_INCLUDE_DIRS})
+include_directories(include${PCL_CONVERSIONS_INCLUDE_DIRS})  
+	
+link_directories(${PCL_LIBRARY_DIRS})
+#target_link_libraries(pcl_create ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 ## Declare a C++ library
 # add_library(test_MTI_G2
 #   src/${PROJECT_NAME}/test_MTI_G2.cpp
@@ -215,6 +224,7 @@ include_directories(
 
 include_directories(include ${catkin_INCLUDE_DIRS}
 	src/qpOASES/include)
+
 
 
 #set(ASCTEC_MAV_MOTION_PLANNING_SRC

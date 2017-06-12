@@ -29,6 +29,8 @@
 #include <sensor_msgs/PointCloud.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
 #include <qpOASES.hpp>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/point_cloud_conversion.h>
 
 
 // dynamic reconfigure includes
@@ -48,7 +50,7 @@ private:
 
 	ros::NodeHandle nh_minsnap;
 
-    void poseCallback(const geometry_msgs::Pose::ConstPtr& pose);
+    void poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose);
 
 	void cmdCallback(const nav_msgs::Path::ConstPtr& positioncmd);
 
@@ -58,10 +60,14 @@ private:
 
 	void extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& ext_state);
 
+	void pcCallback(const sensor_msgs::PointCloud2ConstPtr& pc_obsta);
+
 	//void virtual_dynamics()
 
     //the function used to calculate the minimum trajectory from start point to end point:
     float minimumsnap_line(float t0, float alpha, float x0, float xf, float time);
+
+
 
 
     ros::Publisher taj_pub;  //publish the calculated minimum trajectory
@@ -70,6 +76,8 @@ private:
     ros::Subscriber imu_custom_sub_;
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV, from SLAM module
     ros::Subscriber cmd_sub_;  //subscribe the commanded position of the UAV
+    ros::Subscriber pc_sub_;  //subscribe the point cloud
+    ros::Publisher point_could_pub_;  //publish the point cloud for observe
 
     //determine if the cmd is transmitted from RC transmitter or PC
     //flag_cmd = 1: position command is give by PC
@@ -194,6 +202,9 @@ private:
 	float current_goal[3]; //the current goal
 	float P_sen_obs[3]; //record the sensed position
 
+	int enable_obs_avoid; //during test, this flag can enable or disable the obstacle avoiding module
+
+	sensor_msgs::PointCloud obstacle_received;
 
 //    function [t1,y1]=virtual_dynamics(quad_3d_ode, tspan, y0, options, obsta, pathpara, T_traj, current_hdl)
 //
