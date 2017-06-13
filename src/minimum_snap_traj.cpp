@@ -34,9 +34,13 @@ Minimumsnap::Minimumsnap()
 	//gps environment:
 	ext_state_sub_=nh_minsnap.subscribe<sensor_fusion_comm::ExtState>("fcu/state", 1, &Minimumsnap::extstateCallback, this); //external state, to interface of asctec
 
-	//Subscribe the point cloud2:
-	pc_sub_ =nh_minsnap.subscribe<sensor_msgs::PointCloud2>  ("pcl_output", 1, &Minimumsnap::pcCallback, this);
-	//publish the point cloud:
+	//Subscribe the point cloud2, the topic name should be modified according to the actual situation:
+	pc_sub_ =nh_minsnap.subscribe<sensor_msgs::PointCloud2>  ("pcl_output", 1, &Minimumsnap::pcCallback, this);  //published from the test_path_cmd
+
+	// published from the simulation module
+	//pc_sub_ =nh_minsnap.subscribe<sensor_msgs::PointCloud2>  ("/pelican/vi_sensor/camera_depth/depth/points", 1, &Minimumsnap::pcCallback, this);
+
+	//publish the point cloud, we transform the point cloud 2 to point cloud, and make some process to it
 	point_could_pub_ = nh_minsnap.advertise<sensor_msgs::PointCloud>("point_could_pub",1);
 
 
@@ -375,7 +379,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 					ROS_INFO_STREAM("sensed x position"<<P_sen_obs[0]);
 					ROS_INFO_STREAM("expected z position"<<points_mapcruise[2][current_point_obs]);
 
-					for (int bb =0; bb <n_distime; bb = bb+100)
+					for (int bb =0; bb <n_distime; bb = bb+10)
 					{
 						//everything 1 second
 						for (int i=0; i<3; i++){
@@ -409,8 +413,8 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 					msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
 					msg.y = 99.999;
 					msg.z = 99.999;
-					msg.yaw = -(200.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, the accuracy information for the low level controller
-					msg.type = asctec_hl_comm::mav_ctrl::position;
+					msg.yaw = -(200.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, th-08
+
 					//unit:m/s
 					msg.v_max_xy = 5;
 					msg.v_max_z= 5;
@@ -510,13 +514,13 @@ void Minimumsnap::imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imuda
 	int n_time;
 
 
-	for (int time = 0; time < n_time; time++)
-	{
-		for (int i = 0; i < 3; i++)
-		{
-			traj_snap_strait(&starttime, &duration, &startpath[i], &endpath[i],  &time_array_cbf[time],  &cmd_traj[i][0]);
-		}
-	}
+//	for (int time = 0; time < n_time; time++)
+//	{
+//		for (int i = 0; i < 3; i++)
+//		{
+//			traj_snap_strait(&starttime, &duration, &startpath[i], &endpath[i],  &time_array_cbf[time],  &cmd_traj[i][0]);
+//		}
+//	}
 
 //    x = traj_snap(0, T_orig, pathpara.start(1), pathpara.end(1), t);
 //    y = traj_snap(0, T_orig, pathpara.start(2), pathpara.end(2), t);
@@ -850,7 +854,7 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 	//        y1(i,:)=y';
 	//    end
 
-	double dt =0.05;  //sampling time, can be modified according to the actual conditions
+	double dt =0.01;  //sampling time, can be modified according to the actual conditions
 	int n_state=12; //the dimension of state space
 	double y[12]; //the state of the virtual dynamics, each
 	double u[3]; //the input of the virtual dynamics, each time instant
@@ -863,7 +867,9 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 
 	double T_orig =  norm/pathpara.v;  //calculation average time using the minimum snap trajectory
 
-	*tspan = T_orig + 20;  //the actual time > average time
+
+
+	*tspan = T_orig + 50;  //the actual time > average time
 	int n_time = int((* tspan)/dt);
 
 	* n_dtime = n_time;
@@ -900,8 +906,8 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 			trajd_i.trajd_3d[k] = out_traj_gen[k+9];
 			trajd_i.trajd_4d[k] = out_traj_gen[k+12];
 
-			ROS_INFO_STREAM("NO. "<<i);
-			ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
+		//	ROS_INFO_STREAM("NO. "<<i);
+		//	ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
 		}
 
 
@@ -921,10 +927,12 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 //			y[i] = 0.9;
 //		}
 
+	     printf( "\n distance   = [ %e ] \n", norm );
+
 
 	    virtual_Control(trajd_i, &y[0], obstac, &u[0]);
 
-	    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
+	//    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
 
 
 
@@ -1091,6 +1099,8 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 //		rhatdddd[i] = 2;
 	}
 
+	printf( "\n commanded trajectory = [ %e, %e, %e ] \n", rhat[0], rhat[1], rhat[2] );
+
 
 	//sensed trajectory
 	double r[3], rd[3], rdd[3],  rddd[3];
@@ -1107,6 +1117,8 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 //		rdd[i] = 1;
 //		rddd[i] = 1;
 	}
+
+	printf( "\n sensed trajectory = [ %e, %e, %e ] \n", r[0], r[1], r[2] );
 
 	//parameters in the controller
 	int k1, k2, k3, k4;
@@ -1125,7 +1137,7 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 		v_nom[i] = rhatdddd[i]-k1*(r[i]-rhat[i])-k2*(rd[i]-rhatd[i])-k3*(rdd[i]-rhatdd[i])-k4*(rddd[i]-rhatddd[i]);
 	}
 
-	printf( "\n v_nom= [ %e, %e, %e ] \n", v_nom[0], v_nom[1], v_nom[2] );
+	//printf( "\n v_nom= [ %e, %e, %e ] \n", v_nom[0], v_nom[1], v_nom[2] );
 
 	//parameter:
 	double Ds=0.5;
@@ -1184,14 +1196,14 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    dddh = h_x[3]+h_y[3]+h_z[3]/(cz*cz*cz*cz);
 
 
-	    printf( "\n h_x= [ %e, %e, %e, %e ] \n", h_x[0], h_x[1], h_x[2], h_x[3]);
-	    printf( "\n  h_y= [ %e, %e, %e, %e ] \n", h_y[0], h_y[1], h_y[2], h_y[3]);
-	    printf( "\n  h_z= [ %e, %e, %e, %e ] \n", h_z[0], h_z[1], h_z[2], h_z[3]);
-	    printf( "\n  u_z= [ %e, %e, %e, %e ] \n", u_z[0], u_z[1], u_z[2], u_z[3]);
-	    printf( "\n  u_y= [ %e, %e, %e, %e ] \n", u_y[0], u_y[1], u_y[2], u_y[3]);
-	    printf( "\n  u_x= [ %e, %e, %e, %e ] \n", u_x[0], u_x[1], u_x[2], u_x[3]);
-
-		printf( "\n h, dh, ddh, dddh= [ %e, %e, %e , %e] \n", h, dh, ddh, dddh);
+//	    printf( "\n h_x= [ %e, %e, %e, %e ] \n", h_x[0], h_x[1], h_x[2], h_x[3]);
+//	    printf( "\n  h_y= [ %e, %e, %e, %e ] \n", h_y[0], h_y[1], h_y[2], h_y[3]);
+//	    printf( "\n  h_z= [ %e, %e, %e, %e ] \n", h_z[0], h_z[1], h_z[2], h_z[3]);
+//	    printf( "\n  u_z= [ %e, %e, %e, %e ] \n", u_z[0], u_z[1], u_z[2], u_z[3]);
+//	    printf( "\n  u_y= [ %e, %e, %e, %e ] \n", u_y[0], u_y[1], u_y[2], u_y[3]);
+//	    printf( "\n  u_x= [ %e, %e, %e, %e ] \n", u_x[0], u_x[1], u_x[2], u_x[3]);
+//
+//		printf( "\n h, dh, ddh, dddh= [ %e, %e, %e , %e] \n", h, dh, ddh, dddh);
 
 
 	    //	cbf_planning(const double *u,  double *out);
@@ -1254,6 +1266,12 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    }
 	}
 
+
+	//notice T_sampling, very important:
+	double ts_usec;
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+ 	ROS_INFO_STREAM("time in front of QP solver: )"<<(ts_usec));
+
    //using the opensource package solve QP problem
 	USING_NAMESPACE_QPOASES
 	SQProblem cbfqp(3,1);
@@ -1262,6 +1280,18 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	real_t f1_[3] = {0.0, 0.0, 0.0};
 	real_t A1_[n_ob*3];
 	real_t b1_[n_ob];
+
+	real_t lb_input_[3]; //lower bound of the control
+	real_t ub_input_[3]; //upper bound of the control
+
+	double alpha_lb = 10; //used to calculate the upper and lower bound for the control
+
+	for(int ilb = 0; ilb < 3; ilb ++){
+		lb_input_[ilb] = -alpha_lb - v_nom[ilb];
+		ub_input_[ilb] = alpha_lb - v_nom[ilb];
+	}
+
+
 
 	for (int iqp = 0; iqp < n_ob; iqp ++ ){
 		for (int cqp = 0; cqp < 3; cqp ++ ){
@@ -1283,20 +1313,25 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 
 	//example.hotstart( H_new,g_new,A_new,lb_new,ub_new,lbA_new,ubA_new, nWSR,0);
 	//A1_*x<=b1_
-	cbfqp.init(H1_,f1_,A1_,ptrnll,ptrnll,ptrnll,b1_, nWSR1, 0 );
+	cbfqp.init(H1_,f1_,A1_,lb_input_,ub_input_,ptrnll,b1_, nWSR1, 0 );
 
 	// Get and print solution of second QP.
 	real_t uOpt[3];
 	cbfqp.getPrimalSolution( uOpt );
 	printf( "\n virtual control = [ %e, %e, %e ];  objVal = %e\n\n", uOpt[0], uOpt[1], uOpt[2], cbfqp.getObjVal() );
-	/**/
+
 
 	for (int i=0; i<3; i++)
 	{
 		*(u_virutal+i) = uOpt[i] + v_nom[i];
 
-		//*(u_virutal+i) = 1;
+		//*(u_virutal+i) = v_nom[i];
+
 	}
+
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+ 	ROS_INFO_STREAM("time after QP solver"<<(ts_usec));
+
 
 }
 
@@ -1444,12 +1479,12 @@ void Minimumsnap::traj_snap_strait(const double *t0, const double *alpha, const 
 	*(out+3) = x_ddd;
 	*(out+4) = x_dddd;
 
-//	ROS_INFO_STREAM("*x0 "<<*x0);
-//	ROS_INFO_STREAM("*xf "<<*xf);
-//	ROS_INFO_STREAM("*t "<<*t);
-//	ROS_INFO_STREAM("*t0 "<<*t0);
-//	ROS_INFO_STREAM("*alpha "<<*alpha);
-//	ROS_INFO_STREAM("**out "<<*out);
+	ROS_INFO_STREAM("*x0 "<<*x0);
+	ROS_INFO_STREAM("*xf "<<*xf);
+	ROS_INFO_STREAM("*t "<<*t);
+	ROS_INFO_STREAM("*t0 "<<*t0);
+	ROS_INFO_STREAM("*alpha "<<*alpha);
+	ROS_INFO_STREAM("**out "<<*(out+3));
 
 }
 

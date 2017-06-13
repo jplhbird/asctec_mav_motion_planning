@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 //    	float cmdp[6][3]={{0,0,5},{10,0,3},{5,-5,2},{0,-5,2},{0,0,2},{0,10,2}};
 //    	float yawcmd[6] = {0,0,0.2,0,0,0.1}; //units: rad
 
-    	float cmdp[1][3]={{0,0,5}};
+    	float cmdp[1][3]={{0,0.2,15}};
         float yawcmd[1] = {0}; //units: rad
 
     	totalno = 1;
@@ -223,9 +223,9 @@ int main(int argc, char **argv)
 	        cloud.points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
 	        cloud.points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
 
-	        cloud.points[i].x = 1;
-	        cloud.points[i].y = 1;
-	        cloud.points[i].z = 1;
+	        cloud.points[i].x = 0;
+	        cloud.points[i].y = 0.1;
+	        cloud.points[i].z = 11;
 	    }
 
 	    //Convert the cloud to ROS message

@@ -22,7 +22,7 @@ sim_interface::sim_interface(){
 	path_sim_pub = n_sim.advertise<nav_msgs::Path>("positioncmd", 1);  //test only
 
 
-	pcl_pub = n_sim.advertise<sensor_msgs::PointCloud2> ("pcl_output", 1);   //test only, simulate the point cloud data
+	//pcl_pub = n_sim.advertise<sensor_msgs::PointCloud2> ("pcl_output", 1);   //test only, simulate the point cloud data
 
 
 
