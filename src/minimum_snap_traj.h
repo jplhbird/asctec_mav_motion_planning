@@ -186,6 +186,7 @@ private:
     void virtual_dynamics_onestep(double *x, const double *u, const double * deltat);
     void traj_snap_strait(const double *t0, const double *alpha, const double *x0, const double *xf, const double *t, double *out);
     void traj_gen(const double *t, const pathpara_str &pathpara, const double *T_orig, double *out);
+    void process_pcl(sensor_msgs::PointCloud &obstac); //process the pointcloud, reduce the size of the point cloud data
 
 
     //for obstacle avoiding

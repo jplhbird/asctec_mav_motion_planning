@@ -1525,9 +1525,102 @@ void Minimumsnap::pcCallback(const sensor_msgs::PointCloud2ConstPtr& pc2_obsta)
 	pc2.row_step =  pc2_obsta->row_step;
 	pc2.width =  pc2_obsta->width;
 
+	//convert the pointcloud2 to pointcloud data:
 	sensor_msgs::convertPointCloud2ToPointCloud(pc2,  obstacle_received);
 
+
+	int n_ob;  //No of point clouds
+	n_ob = obstacle_received.points.size();
+
+
+	double A_n[n_ob][3];
+	double b_n[n_ob];
+
+	//%safety function
+	//h_n=zeros(n_ob,1);
+
+	double h_n[n_ob];
+
+	for (int i_obst=0; i_obst<n_ob; i_obst++)
+	{
+
+		//%obstacles:
+		double ob[3];
+//		for (int j=0; j<3; j++)
+//		{
+//			ob[j]=*(obsta+3*i_obst+j);
+//		}
+
+		ob[0]=obstacle_received.points[i_obst].x;
+		ob[1]=obstacle_received.points[i_obst].y;
+		ob[2]=obstacle_received.points[i_obst].z;
+	}
+
+	//obtain the closest points
+	process_pcl(obstacle_received);
 	point_could_pub_.publish(obstacle_received);
+}
+
+void Minimumsnap::process_pcl(sensor_msgs::PointCloud &obstac){
+	//process the original point cloud data
+
+	int n_ob;  //No of point clouds
+	n_ob = obstac.points.size();
+
+	double A_n[n_ob][3];
+	double distance[n_ob];
+	int no_points[n_ob];
+
+	geometry_msgs::Point32 point;
+	std::vector<geometry_msgs::Point32> process_point;
+
+	for (int i_obst=0; i_obst<n_ob; i_obst++)
+	{
+		distance[i_obst] = sqrt( obstac.points[i_obst].x * obstac.points[i_obst].x +
+				obstac.points[i_obst].y * obstac.points[i_obst].y + obstac.points[i_obst].z * obstac.points[i_obst].z);
+	}
+
+	double temp;
+
+	//from small to big, only the distance:
+	for (int i = 0; i < n_ob - 1; i++)
+		for (int j = 0; j < n_ob - 1 - i; j++)
+			if (distance[j] > distance[j + 1]) {
+				temp = distance[j];
+				distance[j] = distance[j + 1];
+				distance[j + 1] = temp;
+			}
+
+	//the order of the points:
+	for (int i = 0; i < n_ob; i++){
+		for (int j = 0; j< n_ob; j++)
+		if(distance[i] ==  sqrt( obstac.points[j].x * obstac.points[j].x +
+				obstac.points[j].y * obstac.points[j].y + obstac.points[j].z * obstac.points[j].z))
+		{
+			no_points[i] = j;
+		}
+	}
+
+	int resize_pcl = 10;  //resize the point cloud data
+
+	if (resize_pcl < n_ob){
+		//the smallest distance:
+		for (int i=0; i<resize_pcl; i++){
+			int no_p = no_points[i];
+			point =obstac.points[no_p];
+			process_point.push_back(point);
+		}
+
+		obstacle_received.points.resize(process_point.size());
+
+		if(!process_point.empty()){
+			obstacle_received.header.frame_id = 'test';
+		}
+
+		for(unsigned int i=0; i < process_point.size(); i++){
+			obstacle_received.points[i] = process_point[i];
+		}
+	}
 }
 
 
