@@ -1511,6 +1511,8 @@ void Minimumsnap::cbf_planning(const double *u,  double *out)
 	*(out+3)=dddh;
 }
 
+//feature-D, modified on July, 25, 2017
+
 void Minimumsnap::pcCallback(const sensor_msgs::PointCloud2ConstPtr& pc2_obsta)
 {
 	sensor_msgs::PointCloud pc_obsta;
