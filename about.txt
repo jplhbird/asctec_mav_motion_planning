@@ -1,3 +1,4 @@
 feature-A: position control run in hl, use original hl-firmware
 feature-B-globalcontrol: used to simulate the global control 
 feature-C: postion control run in ll, should modify hl-firmware
+feature_D: developed from feature-C, use gazebo to simulate the obstacle avoiding, built on 25, June, 2017
