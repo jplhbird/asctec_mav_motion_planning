@@ -88,6 +88,8 @@ Minimumsnap::Minimumsnap()
 
     enable_obs_avoid = 1;  //during test, this flag can enable or disable the obstacle avoiding module
 
+    i_obsta_sampling = 0;
+
 }
 
 Minimumsnap::~Minimumsnap()
@@ -120,6 +122,7 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 	time_doby_last=time_body;
 
 	//T_sampling = 0.05;
+	dt = T_sampling;
 
 
  //	ROS_INFO_STREAM("current time (time_body)"<<(time_body));
@@ -329,107 +332,122 @@ void Minimumsnap::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdat
 				current_point_obs++;
 			}
 
-
 			else if(current_point_obs < i_mapcruise)
 			{
 				//for each path points, execute the obstacle avoiding:
 				{
-					double y_ini[12]; //initial state of virtual dynamics
-					double u_virtual[3]; // input of the virtual dynamics
-					pathpara_str pathpara_received; //set the path parameters for the virtual dynamics
-					//sensor_msgs::PointCloud obstacle_received;
-					double tspan_output;
-					double t_array[20000];
-					double y_array[20000][12];
-					int n_distime;
-
-					for (int aa =0; aa < 3; aa++)
+					if (i_obsta_sampling == 0)
 					{
-						y_ini[aa] =  P_sen_obs[aa];
-						u_virtual[aa] = 0;
+						//initialization for each waypoint:
+//						double u_i[3];
+//						double y_i[12];
 
-						pathpara_received.start[aa] = P_sen_obs[aa];
-						pathpara_received.end[aa] = points_mapcruise[aa][current_point_obs];
-						pathpara_received.v = 1;
-					}
-
-					for (int aa =3; aa < 12; aa++)
-					{
-						y_ini[aa] =  0;
-					}
-
-					virtual_dynamics(&y_ini[0], &u_virtual[0], pathpara_received, obstacle_received, &tspan_output,  & t_array[0], & y_array[0][0], &n_distime);
-
-					//send the waypoint at each path points from the global planner
-					msg.x = 999.999;  //must give a value to P_nom, or it will be zero
-					msg.y = 999.999;
-					msg.z = 999.999;
-					msg.yaw = 0;
-					msg.type = asctec_hl_comm::mav_ctrl::position;
-					//unit:m/s
-					msg.v_max_xy = 5;
-					msg.v_max_z= 5;
-
-					//taj_pub.publish(msg);
-					//publish the msg for the self-developed driver
-					control_pub.publish(msg);
-
-					//show it in terminal:
-					ROS_INFO_STREAM("beginning, obstacle avoiding ");
-					ROS_INFO_STREAM("sensed x position"<<P_sen_obs[0]);
-					ROS_INFO_STREAM("expected z position"<<points_mapcruise[2][current_point_obs]);
-
-					for (int bb =0; bb <n_distime; bb = bb+10)
-					{
-						//everything 1 second
-						for (int i=0; i<3; i++){
-							points_mapcruise_obs[i][bb] = y_array[bb][i];
+						for (int aa =0; aa < 3; aa++)
+						{
+							y_ini[aa] =  P_sen_obs[aa];
+							u_virtual[aa] = 0;
+							pathpara_received.start[aa] = P_sen_obs[aa];
+							pathpara_received.end[aa] = points_mapcruise[aa][current_point_obs];
+							pathpara_received.v = 1;
 						}
 
-						//important, notice the unit and the definition of the coordinate frame:
-						msg.x = points_mapcruise_obs[0][bb];  //must give a value to P_nom, or it will be zero?
-						msg.y = points_mapcruise_obs[1][bb];
-						msg.z = points_mapcruise_obs[2][bb];
-						msg.yaw = yaw_mapcruise_obs[bb];
-						msg.type = asctec_hl_comm::mav_ctrl::position;
-						//unit:m/s
-						msg.v_max_xy = 5;
-						msg.v_max_z= 5;
+						for (int aa =3; aa < 12; aa++)
+						{
+							y_ini[aa] =  0;
+						}
 
-						//taj_pub.publish(msg);
+						virtual_dynamics(&y_ini[0], &u_virtual[0], pathpara_received, obstacle_received, &tspan_output,
+								& t_array[0], & y_array[0][0], &n_distime, & T_orig);
 
-						//publish the msg for the self-developed driver
-						control_pub.publish(msg);
+						for(int i=0; i<12; i++)
+						{//the initial state of the virtual dynamics
+							y_i[i]= y_ini[i];
 
-						//show it in terminal:
-						ROS_INFO_STREAM("current no "<<bb);
-						ROS_INFO_STREAM("cmd, x: "<<msg.x);
-						ROS_INFO_STREAM("cmd, y: "<<msg.y);
-						ROS_INFO_STREAM("cmd, z: "<<msg.z);
-						ROS_INFO_STREAM("cmd, yaw: "<<msg.yaw);
+						}
+
+						i_obsta_sampling++;
 					}
+					else
+					{
 
-					//end of the commands:
-					msg.x = 99.999;  //must give a value to P_nom, or it will be zero?
-					msg.y = 99.999;
-					msg.z = 99.999;
-					msg.yaw = -(200.0-360000.0)/360000.0*2*M_PI-2*M_PI; //notice the transformation process, th-08
+					//each period, run the virtual control:
+					//for(i_obsta_sampling = 0; i_obsta_sampling < n_distime; i_obsta_sampling++)
+						{
+							*(t_array+i_obsta_sampling) = *(t_array+i_obsta_sampling-1)+dt;  //time array
 
-					//unit:m/s
-					msg.v_max_xy = 5;
-					msg.v_max_z= 5;
+							trajd trajd_i;
 
-					//taj_pub.publish(msg);
+							//current time:
+							double t;
+							t=*(t_array+i_obsta_sampling);
 
-					//publish the msg for the self-developed driver
-					control_pub.publish(msg);
 
-					//show it in terminal:
-					ROS_INFO_STREAM("transmit finished, obstacle avoiding");
+							//traj_gen(const double *t, const pathpara_str &pathpara, const double *T_orig, double *out)
+							//pathpara_str pathpara;
+							double out_traj_gen[15];
+							traj_gen(&t, pathpara_received, &T_orig, &out_traj_gen[0]);
+							for (int k=0; k<3; k++){
+								trajd_i.trajd_0d[k] = out_traj_gen[k];
+								trajd_i.trajd_1d[k] = out_traj_gen[k+3];
+								trajd_i.trajd_2d[k] = out_traj_gen[k+6];
+								trajd_i.trajd_3d[k] = out_traj_gen[k+9];
+								trajd_i.trajd_4d[k] = out_traj_gen[k+12];
 
+							//	ROS_INFO_STREAM("NO. "<<i);
+							//	ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
+							}
+
+						    int n_ob;
+
+
+						    //test code:
+					//		for (int i=0; i<3; i++){
+					//			 trajd_i.trajd_0d[i] =0.5;
+					//		     trajd_i.trajd_1d[i]=0.5;
+					//			  trajd_i.trajd_2d[i]=0.5;
+					//			 trajd_i.trajd_3d[i]=0.5;
+					//			 trajd_i.trajd_4d[i]=0.5;
+					//		}
+					//		for (int i=0; i<12; i++){
+					//			y[i] = 0.9;
+					//		}
+
+
+
+						    virtual_Control(trajd_i, &y_i[0], obstacle_received, &u_i[0]);
+						//    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
+							virtual_dynamics_onestep(&y_i[0], &u_i[0], & dt); //dynamics at each time
+
+							//send commands:
+							msg.x = y_i[0];  //must give a value to P_nom, or it will be zero?
+							msg.y = y_i[1];
+							msg.z = y_i[2];
+							msg.yaw = 0; //need to be modified further
+							msg.type = asctec_hl_comm::mav_ctrl::position;
+							//unit:m/s
+							msg.v_max_xy = 5;
+							msg.v_max_z= 5;
+
+							//publish the msg for the self-developed driver
+							control_pub.publish(msg);
+
+							//show it in terminal:
+							ROS_INFO_STREAM("current no "<<i_obsta_sampling);
+							ROS_INFO_STREAM("cmd, x: "<<msg.x);
+							ROS_INFO_STREAM("cmd, y: "<<msg.y);
+							ROS_INFO_STREAM("cmd, z: "<<msg.z);
+							ROS_INFO_STREAM("cmd, yaw: "<<msg.yaw);
+
+							i_obsta_sampling++;
+						}
+					}
 				}
 
-				current_point_obs++;
+
+				if ( i_obsta_sampling >= n_distime){
+					i_obsta_sampling = 0;
+					current_point_obs++;
+				}
 			}
 			else if (current_point_obs >= i_mapcruise)
 			{
@@ -716,6 +734,8 @@ void Minimumsnap::cmdCallback(const nav_msgs::PathConstPtr& positioncmd){
 		current_point_obs = -1;
 		flag_pc_cmd_obs = 1;
 
+		i_obsta_sampling = 0;
+
 		for (int j = 0; j< i_mapcruise-1; j++)
 		{
 			double y_ini[12]; //initial state of virtual dynamics
@@ -829,7 +849,7 @@ void Minimumsnap::reset_yaw_control(void)
 
 
 void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pathpara_str &pathpara,
-		const sensor_msgs::PointCloud &obstac, double * tspan,  double *t1, double*y1, int * n_dtime)
+		const sensor_msgs::PointCloud &obstac, double * tspan,  double *t1, double*y1, int * n_dtime, double *T_orig )
 {
 	//    function [t1,y1]=virtual_dynamics(quad_3d_ode, tspan, y0, options, obsta, pathpara, T_traj, current_hdl)
 	//
@@ -865,20 +885,14 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 			(pathpara.end[1]-pathpara.start[1])*(pathpara.end[1]-pathpara.start[1]) +
 			(pathpara.end[2]-pathpara.start[2])*(pathpara.end[2]-pathpara.start[2]) );
 
-	double T_orig =  norm/pathpara.v;  //calculation average time using the minimum snap trajectory
+	*T_orig =  norm/pathpara.v;  //calculation average time using the minimum snap trajectory
 
 
 
-	*tspan = T_orig + 50;  //the actual time > average time
+	*tspan = *T_orig + 50;  //the actual time > average time
 	int n_time = int((* tspan)/dt);
 
 	* n_dtime = n_time;
-
-	*t1 = 0;
-	for(int i = 1; i < n_time; i++)
-	{
-		*(t1+i) = *(t1+i-1)+dt;  //time array
- 	}
 
 	for(int i=0; i<12; i++)
 	{//the initial state of the virtual dynamics
@@ -886,65 +900,74 @@ void Minimumsnap::virtual_dynamics(const double *y0, const double *u_virtual, pa
 
 	}
 
-	for(int i = 0; i < n_time; i++)
-	{
-		trajd trajd_i;
-
-		//current time:
-		double t;
-		t=*(t1+i);
-
-
-		//traj_gen(const double *t, const pathpara_str &pathpara, const double *T_orig, double *out)
-		//pathpara_str pathpara;
-		double out_traj_gen[15];
-		traj_gen(&t, pathpara, &T_orig, &out_traj_gen[0]);
-		for (int k=0; k<3; k++){
-			trajd_i.trajd_0d[k] = out_traj_gen[k];
-			trajd_i.trajd_1d[k] = out_traj_gen[k+3];
-			trajd_i.trajd_2d[k] = out_traj_gen[k+6];
-			trajd_i.trajd_3d[k] = out_traj_gen[k+9];
-			trajd_i.trajd_4d[k] = out_traj_gen[k+12];
-
-		//	ROS_INFO_STREAM("NO. "<<i);
-		//	ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
-		}
+	*t1 = 0; //initial time
 
 
 
-	    int n_ob;
 
 
-	    //test code:
-//		for (int i=0; i<3; i++){
-//			 trajd_i.trajd_0d[i] =0.5;
-//		     trajd_i.trajd_1d[i]=0.5;
-//			  trajd_i.trajd_2d[i]=0.5;
-//			 trajd_i.trajd_3d[i]=0.5;
-//			 trajd_i.trajd_4d[i]=0.5;
+
+//
+//	for(int i = 0; i < n_time; i++)
+//	{
+//
+//		*(t1+i) = *(t1+i-1)+dt;  //time array
+//
+//		trajd trajd_i;
+//
+//		//current time:
+//		double t;
+//		t=*(t1+i);
+//
+//
+//		//traj_gen(const double *t, const pathpara_str &pathpara, const double *T_orig, double *out)
+//		//pathpara_str pathpara;
+//		double out_traj_gen[15];
+//		traj_gen(&t, pathpara, T_orig, &out_traj_gen[0]);
+//		for (int k=0; k<3; k++){
+//			trajd_i.trajd_0d[k] = out_traj_gen[k];
+//			trajd_i.trajd_1d[k] = out_traj_gen[k+3];
+//			trajd_i.trajd_2d[k] = out_traj_gen[k+6];
+//			trajd_i.trajd_3d[k] = out_traj_gen[k+9];
+//			trajd_i.trajd_4d[k] = out_traj_gen[k+12];
+//
+//		//	ROS_INFO_STREAM("NO. "<<i);
+//		//	ROS_INFO_STREAM("panned trajectory"<<trajd_i.trajd_0d[k]);
 //		}
-//		for (int i=0; i<12; i++){
-//			y[i] = 0.9;
+//
+//
+//
+//	    int n_ob;
+//
+//
+//	    //test code:
+////		for (int i=0; i<3; i++){
+////			 trajd_i.trajd_0d[i] =0.5;
+////		     trajd_i.trajd_1d[i]=0.5;
+////			  trajd_i.trajd_2d[i]=0.5;
+////			 trajd_i.trajd_3d[i]=0.5;
+////			 trajd_i.trajd_4d[i]=0.5;
+////		}
+////		for (int i=0; i<12; i++){
+////			y[i] = 0.9;
+////		}
+//
+//	     printf( "\n distance   = [ %e ] \n", norm );
+//
+//
+//	    virtual_Control(trajd_i, &y[0], obstac, &u[0]);
+//
+//	//    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
+//
+//
+//		virtual_dynamics_onestep(&y[0], &u[0], & dt); //dynamics at each time
+//
+//		for (int row=0; row<12; row++)
+//		{
+//			//record the state at each instant
+//			*(y1+i*12+row)=y[row];    //double y1[n][12]
 //		}
-
-	     printf( "\n distance   = [ %e ] \n", norm );
-
-
-	    virtual_Control(trajd_i, &y[0], obstac, &u[0]);
-
-	//    printf( "\n test the control  = [ %e, %e, %e ] \n", u[0], u[1], u[2]  );
-
-
-
-
-		virtual_dynamics_onestep(&y[0], &u[0], & dt); //dynamics at each time
-
-		for (int row=0; row<12; row++)
-		{
-			//record the state at each instant
-			*(y1+i*12+row)=y[row];    //double y1[n][12]
-		}
-	}
+//	}
 }
 
 

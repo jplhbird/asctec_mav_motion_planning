@@ -180,7 +180,7 @@ private:
 
 
     void virtual_dynamics(const double *y0, const double *u_virtual, pathpara_str &pathpara,
-    		const sensor_msgs::PointCloud &obstac, double * tspan, double *t1, double*y1, int * n_dtime);
+    		const sensor_msgs::PointCloud &obstac, double * tspan, double *t1, double*y1, int * n_dtime, double *T_orig);
     void virtual_Control(const trajd& trajd_i, const double * y, const sensor_msgs::PointCloud &obstac,  double *u_virutal);
     void cbf_planning(const double *u,  double *out);
     void virtual_dynamics_onestep(double *x, const double *u, const double * deltat);
@@ -204,6 +204,22 @@ private:
 	float P_sen_obs[3]; //record the sensed position
 
 	int enable_obs_avoid; //during test, this flag can enable or disable the obstacle avoiding module
+
+	int i_obsta_sampling; //the flag used in obstacle avoiding, used to operate the control flow
+	double y_ini[12]; //initial state of virtual dynamics
+	double u_virtual[3]; // input of the virtual dynamics
+	pathpara_str pathpara_received; //set the path parameters for the virtual dynamics
+	//sensor_msgs::PointCloud obstacle_received;
+	double tspan_output;
+	double t_array[20000];
+	double y_array[20000][12];
+	int n_distime;
+	double T_orig;
+	double dt = 0.01;
+	double u_i[3];
+	double y_i[12];
+
+
 
 	sensor_msgs::PointCloud obstacle_received;
 

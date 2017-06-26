@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 
 	        cloud.points[i].x = 0;
 	        cloud.points[i].y = 0.1;
-	        cloud.points[i].z = 11;
+	        cloud.points[i].z = 50;
 	    }
 
 	    //Convert the cloud to ROS message
