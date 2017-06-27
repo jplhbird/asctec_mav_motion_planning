@@ -218,6 +218,7 @@ private:
 	double dt = 0.01;
 	double u_i[3];
 	double y_i[12];
+	sensor_fusion_comm::ExtState state_feedback;
 
 
 

@@ -607,11 +607,12 @@ void Minimumsnap::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose)
 		P_sen[1]=pose->pose.position.y;
 		P_sen[2]=pose->pose.position.z;
 
+	    P_sen_obs[0]= pose->pose.position.x;
+	    P_sen_obs[1]= pose->pose.position.y;
+	    P_sen_obs[2]= pose->pose.position.z;
     }
 
-    P_sen_obs[0]= pose->pose.position.x;
-    P_sen_obs[1]= pose->pose.position.y;
-    P_sen_obs[2]= pose->pose.position.z;
+
 
     if (slam_int ==0 )
     {
@@ -637,6 +638,9 @@ void Minimumsnap::extstateCallback(const sensor_fusion_comm::ExtStateConstPtr& e
 //    P_sen_obs[0]=ext_state->pose.position.x;
 //    P_sen_obs[1]=ext_state->pose.position.y;
 //    P_sen_obs[2]=ext_state->pose.position.z;
+
+
+    state_feedback.pose.orientation = ext_state->pose.orientation;
 
 }
 
@@ -1204,9 +1208,42 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    //calculate the safety related functions
 	    double h_x[4], h_y[4], h_z[4];
 	    double u_x[4], u_y[4], u_z[4];
+
+	    //ob is expressed in inertial frame:
 	    u_x[0]=r[0]-ob[0]; u_x[1] =rd[0]; u_x[2] =rdd[0];  u_x[3] =rddd[0];
 	    u_y[0]=r[1]-ob[1]; u_y[1] =rd[1]; u_y[2] =rdd[1];  u_y[3] =rddd[1];
 	    u_z[0]=r[2]-ob[2]; u_z[1] =rd[2]; u_z[2] =rdd[2];  u_z[3] =rddd[2];
+
+
+	    //if ob is the relative distance expressed in body fixed-frame:
+	    double ob_temp[3];
+
+	    for(int ii = 0; ii < 3; ii++)
+	    {
+	    	ob_temp[ii] = ob[ii];
+	    }
+
+		//convert it to quaternion:
+		double R_temp[9];
+		double q_temp[4];
+
+		//notice the order of quaternion:
+		q_temp[1] = state_feedback.pose.orientation.x;
+		q_temp[2] = state_feedback.pose.orientation.y;
+		q_temp[3] = state_feedback.pose.orientation.z;
+		q_temp[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&q_temp[0], &R_temp[0]);
+
+		ob[0] = R_temp[0]* ob_temp[0] + R_temp[1]*ob_temp[1]  + R_temp[2]*ob_temp[2];
+		ob[1] = R_temp[3]* ob_temp[0] + R_temp[4]*ob_temp[1]  + R_temp[5]*ob_temp[2];
+		ob[2] = R_temp[6]* ob_temp[0] + R_temp[7]*ob_temp[1]  + R_temp[8]*ob_temp[2];
+
+	    u_x[0]= -ob[0];
+	    u_y[0]= -ob[1];
+	    u_z[0]= -ob[2];
+	    //finished process if ob is the relative distance
+
 
 	    cbf_planning(&u_x[0],  &h_x[0]);
 	    cbf_planning(&u_y[0],  &h_y[0]);
@@ -1246,7 +1283,12 @@ void Minimumsnap::virtual_Control(const trajd& trajd_i, const double * y, const 
 	    double relative_r[3];
 	    for (int i=0; i<3; i++)
 	    {
+	    	//ob is expressed in inertial frame:
 	    	relative_r[i] = r[i] - ob[i];
+
+	    	//if ob is the relative distance expressed in body-fixed frame:
+	    	//we have transformed ob:
+	    	relative_r[i] =  -ob[i];
 	    }
 
 //	    %optimal problem:
