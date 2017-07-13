@@ -55,6 +55,8 @@ pnh_("~/fcu")
 	//determine if the RC data transmit position commands:
 	flag_rc_cmd=1;
 
+	flag_control =0;
+
 
 	//record the time
 	time_doby_last=0;
@@ -115,6 +117,38 @@ pnh_("~/fcu")
 
     		a_1_in[i] = omega_n_filter_in[i]*omega_n_filter_in[i];
     		a_2_in[i] = 2*xi_filter_in[i]*omega_n_filter_in[i];
+
+    		P_nom[i] = 0;
+    		P_sen[i] = 0;
+    		P_err[i] = 0;
+    		P_err_int[i] = 0;
+
+			V_nom[i] = 0;
+			V_com[i] = 0;
+			V_ctrl[i] = 0;
+			//V_sen[i] = 0;
+			V_err[i] = 0;
+			V_err_int[i] = 0;
+
+			f_z_com=0;
+
+			F_nom[i] = 0;
+			F_com[i] = 0;
+			F_ctrl[i] = 0;
+
+			gamma_com[i] = 0;
+			gamma_nom[i] = 0;
+			//gamma_sen[i] = 0;
+			gamma_err[i] = 0;
+			gamma_err_int[i] = 0;
+			gamma_ctrl[i]=0;
+
+			omega_nom[i] = 0;
+			omega_com[i] = 0;
+			omega_ctrl[i] = 0;
+			//omega_sen[i] = 0;
+			omega_err[i] = 0;
+			omega_err_int[i] = 0;
     	}
 
     	ksi_roll_out=2.6;
@@ -124,26 +158,26 @@ pnh_("~/fcu")
     	ksi_pitch_in=3.4;
     	ksi_yaw_in=2.3;
 
-    	omega_roll_out=0.8;
+    	omega_roll_out=1.2;
     	omega_pitch_out=0.8;
-    	omega_yaw_out=0.8;
+    	omega_yaw_out=1.2;
     	omega_roll_in=3.5;
     	omega_pitch_in=3.5;
     	omega_yaw_in=3.2;
 
     	ksi_trans_out_x=1.6;
     	ksi_trans_out_y=1.6;
-    	ksi_trans_out_z=2;
-    	omega_trans_out_x=0.15;
-    	omega_trans_out_y=0.15;
-    	omega_trans_out_z=0.15;
+    	ksi_trans_out_z=2.5;
+    	omega_trans_out_x=0.4;
+    	omega_trans_out_y=0.4;
+    	omega_trans_out_z=0.4;
 
     	ksi_trans_in_x=1.6;
     	ksi_trans_in_y=1.6;
-    	ksi_trans_in_z=2;
-    	omega_trans_in_x=0.4;
-    	omega_trans_in_y=0.4;
-    	omega_trans_in_z=0.4;
+    	ksi_trans_in_z=2.5;
+    	omega_trans_in_x=0.8;
+    	omega_trans_in_y=0.8;
+    	omega_trans_in_z=0.8;
 
 		//sampling time:
 		T_sampling = 0.05;
@@ -151,6 +185,19 @@ pnh_("~/fcu")
 
 		m = 1.35;
 		g_ = 9.8;
+		G=0;
+    }
+
+    {
+    	//simulation variable:
+    	for(int j=0; j<3; j++){
+    		P_sim[j] = 0;
+    		V_sim[j] = 0;
+    		gamma_sim[j] = 0;
+    	}
+    	m_sim = 1.31;
+    	g_sim = 9.8;
+    	flag_sim = 0;
     }
 
 
@@ -164,8 +211,10 @@ pnh_("~/fcu")
     state_feedback.pose.orientation.z=0;
     state_feedback.pose.orientation.w=1;
 
-
-}
+    state_feedback.pose.position.x=0;
+    state_feedback.pose.position.y=0;
+    state_feedback.pose.position.z=0;
+ }
 
 
 void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd){
@@ -272,6 +321,45 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 //	state_feedback.pose.position.z=566;
 	/////////////////////////////////////
 
+
+
+
+	{
+		//when using hl position control, the orientation is from IMU, initialize the yaw angle, notice the frame is x-front, y-left
+		//add the intial yaw angle:
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = imudata->orientation.x;
+		quaternion[2] = imudata->orientation.y;
+		quaternion[3] = imudata->orientation.z;
+		quaternion[0] = imudata->orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//revise the yaw angle considering the initial angle
+		gamma_temp[2] = gamma_temp[2] - yaw_ini_slam;
+
+		//convert it to quaternion:
+		double R_temp_2[9];
+		double quaternion_2[4];
+
+		math_function::computeR(&gamma_temp[0], &R_temp_2[0]);
+		math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
+
+		state_feedback.pose.orientation.x = quaternion_2[1];
+		state_feedback.pose.orientation.y = quaternion_2[2];
+		state_feedback.pose.orientation.z = quaternion_2[3];
+		state_feedback.pose.orientation.w = quaternion_2[0];
+	}
+
+
+
 	ext_state.publish(state_feedback);
 
 	//test the frequency of the data:
@@ -310,13 +398,33 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		//should be transformed from ENU to NED
 		//the control law is expressed in NED
 		//the feedback information is expressed in ENU:
-		P_sen[0] = state_feedback.pose.position.x;
-		P_sen[1] = -state_feedback.pose.position.y;
-		P_sen[2] = -state_feedback.pose.position.z;
 
-		V_sen[0] = state_feedback.velocity.x;
-		V_sen[1] = -state_feedback.velocity.y;
-		V_sen[2] = -state_feedback.velocity.z;
+		//real world, not simulation:
+			P_sen[0] = state_feedback.pose.position.x;
+			P_sen[1] = -state_feedback.pose.position.y;
+			P_sen[2] = -state_feedback.pose.position.z;
+
+			V_sen[0] = state_feedback.velocity.x;
+			V_sen[1] = -state_feedback.velocity.y;
+			V_sen[2] = -state_feedback.velocity.z;
+
+		if(flag_sim == 1)
+		{//simulation:
+			state_feedback.pose.position.x = P_sim[0];
+			state_feedback.pose.position.y = -P_sim[1];
+			state_feedback.pose.position.z = -P_sim[2];
+
+			state_feedback.velocity.x= V_sim[0];
+			state_feedback.velocity.y = -V_sim[1];
+			state_feedback.velocity.z = -V_sim[2];
+			if(flag_sim == 1)
+			{
+				translation_eom();
+
+				printf( "\n  simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
+				printf( "\n  simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+			}
+		}
 
 		//below, get the yaw angle
 		double quaternion[4];
@@ -343,10 +451,10 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	//notice T_sampling, very important:
 	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 	time_body =(double)(ts_usec-time)/1.0e6;  //actual time used in calculation
-	T_sampling = time_body-time_doby_last;
+	//T_sampling = time_body-time_doby_last;
 	time_doby_last = time_body;
 
-	//T_sampling = 0.05;
+	T_sampling = 0.05;
 
  	//ROS_INFO_STREAM("current time (time_body)"<<(time_body));
  	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
@@ -361,33 +469,39 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		 //note the rcdata is not the same with the command sent to LL from HL
 		 //msg.x msg.y units: rad
 
-		 msg.x =  (rcdata->channel[0]-2047) *k_stick_/1000.0*M_PI/180.0;  //pitch
-		 msg.y =  (-rcdata->channel[1] + 2047) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
-		 msg.yaw = (-rcdata->channel[3] + 2047) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
+		 msg.x =  (rcdata->channel[0]-2128) *k_stick_/1000.0*M_PI/180.0;  //pitch
+		 msg.y =  (-rcdata->channel[1] + 2016) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
+		 msg.yaw = (-rcdata->channel[3] + 2048) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
 
 		 msg.z = rcdata->channel[2]/4096.0;
 	}
 
 	if (((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
 	{
-		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
-
-
-//		  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x / config_.max_velocity_xy * 2047.0));
-//		  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y / config_.max_velocity_xy * 2047.0));
-//		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
-//		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
-
-		msg.x = -(rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
-		msg.y = (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
-		msg.yaw = (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
-		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+//		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+//
+//
+////		  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x / config_.max_velocity_xy * 2047.0));
+////		  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y / config_.max_velocity_xy * 2047.0));
+////		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
+////		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
+//
+//		msg.x = -(rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
+//		msg.y = (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
+//		msg.yaw = (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+//		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 	}
 
+	if((rcdata->channel[5]) <= 1800 )
+	{
+		flag_control = 0;
+	}
 
 	if ((rcdata->channel[5]) > 4000 )
 	{
+		if(flag_control ==1)
+		{
 		//msg.type = asctec_hl_comm::mav_ctrl::position;
 		global_position_cmd.type = asctec_hl_comm::mav_ctrl::position;
 
@@ -395,16 +509,15 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		{
 			//position cmd is from RC transmitter, transmitter sends velocity commands:
 
-			global_position_cmd.x =  global_position_cmd.x - T_sampling* (rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
-			global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
-			global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+			//X front, Y left:
+			global_position_cmd.x =  global_position_cmd.x - T_sampling* (rcdata->channel[0]-2128) /2047.0*config_motion.max_velocity_xy;
+			global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata->channel[1] + 2016) /2047.0*config_motion.max_velocity_xy;
+			global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2048) /2047.0*config_motion.max_velocity_yaw;
 			global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 			//unit:m/s
 			global_position_cmd.v_max_xy = 5;
 			global_position_cmd.v_max_z= 5;
-
-
 
 			//modified on Feb. 13, 2017, cancel this massege:
 			//msg = global_position_cmd;
@@ -418,8 +531,31 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			gamma_nom[2] = -global_position_cmd.yaw;
 		}
 
+		//run the position control law, all expressed in NED frame
+		compute_V_nom();
+		compute_F_nom();
+		translate_outerloop_controller();
+		translate_innerloop_controller();
+ 		compute_gamma_nom();
+		compute_omega_nom();
+		rotate_outerloop_controller();
 
 
+		//generate the thrust and attitude commands, notice, should be in in ENU frame:
+
+		msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+		//note the rcdata is not the same with the command sent to LL from HL
+		msg.x =  gamma_nom[1];  //pitch angle
+		msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+		msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+		msg.z = 0.5*G/(m*g_);
+		}
+	}
+
+	if(flag_control ==2)
+	{
+		//hovering mode:
 		//run the position control law, all expressed in NED frame
 		compute_V_nom();
 		compute_F_nom();
@@ -429,17 +565,37 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		compute_omega_nom();
 		rotate_outerloop_controller();
 
-		//generate the thrust and attitude commands, notice, should be in in ENU frame:
 
+		//generate the thrust and attitude commands, notice, should be in in ENU frame:
 		msg.type = asctec_hl_comm::mav_ctrl::acceleration;
 
 		//note the rcdata is not the same with the command sent to LL from HL
-		//msg.x =  gamma_nom[1];  //pitch angle
-		//msg.y =  -gamma_nom[0];   //opposite direction, roll angle
-		//msg.yaw = -omega_com[2];   //opposite direction, yaw rate
-		//msg.z = 0.5*G/(m*g_);
+		msg.x =  gamma_nom[1];  //pitch angle
+		msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+		msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+		msg.z = 0.5*G/(m*g_);
 	}
 
+
+
+	if ( ((rcdata_last.channel[5])>4000) & ((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
+	{
+		{
+			flag_control = 2;  //hovering mode
+			//yaw angle:
+			gamma_com[2] = gamma_sen[2];
+			gamma_nom[2] = gamma_sen[2];
+
+		//initialize when transition from 3DOF to 6 DOF
+			yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+			gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+			gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+
+			P_nom[0] = P_sen[0];
+			P_nom[1] = P_sen[1];
+			P_nom[2] = P_sen[2];
+		}
+	}
 
 
 	if ( ((rcdata_last.channel[5])<4000) & ((rcdata->channel[5])>4000))
@@ -455,10 +611,11 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 
 		{
+			flag_control = 1;  //accepts position commands
 			for (int i=0;i<3;i++)    //commanded value, control value and sensed value initialization
 			{
 				//P_com[i] = 0;
-				P_nom[i] = 0;
+				//P_nom[i] = 0;
 				//P_sen[i] = 0;
 				P_err[i] = 0;
 				P_err_int[i] = 0;
@@ -528,9 +685,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 			gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
 			//reset_yaw_control(); //initialize the commands of yaw angle
 
-			G = rcdata->channel[2]/4096.0/0.5*m; //obtain the relative mass when transition from 3dof to 6dof
+			G = rcdata->channel[2]/4096.0/0.5*m*g_; //obtain the relative mass when transition from 3dof to 6dof
 			G_6dof_init = G;  //record the thrust in the transition instant when from 3 DOF to 6 DOF
-			m = G_6dof_init/g_;  //revise the mass accoording to the current total thrust command
+			//m = G_6dof_init/g_;  //revise the mass accoording to the current total thrust command
 
 			//computeR(&gamma_com[0], &Rcom_filter_m1[0][0]); //set the initial value of rotation matrix
 	//		for(int i=0;i<3;i++)
@@ -540,6 +697,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	//				Rcom_filter_m1[i][j]=R_com[i][j];
 	//			}
 	//		}
+
 
 			P_nom[0] = P_sen[0];
 			P_nom[1] = P_sen[1];
@@ -606,12 +764,23 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	if (flag_rc_cmd == 1)
 	{
 		//only receive the commands from RC transmitter
-		//ROS_INFO_STREAM("cmd , x: "<<msg.x);
-		//ROS_INFO_STREAM("cmd  , y: "<<msg.y);
-		//ROS_INFO_STREAM("cmd  , yaw: "<<msg.yaw);
-		//ROS_INFO_STREAM("cmd  , z: "<<msg.z);
-		//ROS_INFO_STREAM("global_position_cmd  , z: "<<global_position_cmd.z);
-		//llcmd_pub_vel.publish(msg);
+		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
+		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
+		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
+		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
+		printf("commanded global position= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
+		printf( "\n  commanded position = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
+		printf( "\n  nominal velocity = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
+		printf( "\n  commanded velocity = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
+		printf( "\n  nominal force = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
+		printf( "\n  commmanded force = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+		printf( "\n  commmanded force without gravity = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+		printf( "\n  sensed Euler angles = [ %f, %f, %f] \n", gamma_sen[0], gamma_sen[1], gamma_sen[2]);
+		printf( "\n  sensed position = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
+		printf( "\n  sensed velocity = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+		printf( "\n  position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
+
+		llcmd_pub_acc.publish(msg);
 	}
 
     ext_state.publish(state_feedback);
@@ -726,7 +895,7 @@ void TeleopIMU::send_acc_ctrl(void){
 //    }
 
     while (ros::ok()){
-    	llcmd_pub_acc.publish(msg);
+    	//llcmd_pub_acc.publish(msg);
 
     	ros::spinOnce();
 
@@ -752,6 +921,126 @@ void TeleopIMU::cbmotionConfig(asctec_mav_motion_planning::motion_planning_paraC
 	config_motion = config;
 
 	ROS_INFO_STREAM("max_velocity_xy: "<<config_motion.max_velocity_xy);
+
+
+    //feedback control parameters:
+	ksi_trans_out_x = config.ksi_trans_out_x;
+    ksi_trans_out_y = config.ksi_trans_out_y;
+    ksi_trans_out_z = config.ksi_trans_out_z;
+
+    omega_trans_out_x = config.omega_trans_out_x;
+    omega_trans_out_y = config.omega_trans_out_y;
+    omega_trans_out_z = config.omega_trans_out_z;
+
+    ksi_trans_in_x = config.ksi_trans_in_x;
+    ksi_trans_in_y = config.ksi_trans_in_y;
+    ksi_trans_in_z = config.ksi_trans_in_z;
+
+    omega_trans_in_x = config.omega_trans_in_x;
+    omega_trans_in_y = config.omega_trans_in_y;
+    omega_trans_in_z = config.omega_trans_in_z;
+
+    ksi_roll_out = config.ksi_yaw_out;
+    omega_roll_out = config.omega_yaw_out;
+
+    //filter parameters:
+    omega_n_filter_out_trans[0] = config.omega_trans_out_x_filter;
+    omega_n_filter_out_trans[1] = config.omega_trans_out_y_filter;
+    omega_n_filter_out_trans[2] = config.omega_trans_out_z_filter;
+
+    xi_filter_out_trans[0] = config.ksi_trans_out_x_filter;
+    xi_filter_out_trans[1] = config.ksi_trans_out_y_filter;
+    xi_filter_out_trans[2] = config.ksi_trans_out_z_filter;
+
+    omega_n_filter_in_trans[0] = config.omega_trans_in_x_filter;
+    omega_n_filter_in_trans[1] = config.omega_trans_in_y_filter;
+    omega_n_filter_in_trans[2] = config.omega_trans_in_z_filter;
+
+    xi_filter_in_trans[0] = config.ksi_trans_in_x_filter;
+    xi_filter_in_trans[1] = config.ksi_trans_in_y_filter;
+    xi_filter_in_trans[2] = config.ksi_trans_in_z_filter;
+
+    omega_n_filter_out[2] = config.omega_yaw_out_filter;
+    xi_filter_out[2] = config.ksi_yaw_out_filter;
+    m = config.mass_control;
+
+	for (int i=0;i<3;i++) {
+		a_1_out_trans[i] = omega_n_filter_out_trans[i]*omega_n_filter_out_trans[i];
+		a_2_out_trans[i] = 2*xi_filter_out_trans[i]*omega_n_filter_out_trans[i];
+
+		a_1_in_trans[i] = omega_n_filter_in_trans[i]*omega_n_filter_in_trans[i];
+		a_2_in_trans[i] = 2*xi_filter_in_trans[i]*omega_n_filter_in_trans[i];
+
+		a_1_out[i] = omega_n_filter_out[i]*omega_n_filter_out[i];
+		a_2_out[i] = 2*xi_filter_out[i]*omega_n_filter_out[i];
+
+		a_1_in[i] = omega_n_filter_in[i]*omega_n_filter_in[i];
+		a_2_in[i] = 2*xi_filter_in[i]*omega_n_filter_in[i];
+	}
+
+
+
+//   	omega_n_filter_out_trans[0] = 10.0;
+//    	omega_n_filter_out_trans[1] = 10.0;
+//    	omega_n_filter_out_trans[2] = 10.0;
+//    	xi_filter_out_trans[0] = 1.414;
+//    	xi_filter_out_trans[1] = 1.414;
+//    	xi_filter_out_trans[2] = 1.414;
+//
+//    	omega_n_filter_in_trans[0] = 10.0;
+//    	omega_n_filter_in_trans[1] = 10.0;
+//    	omega_n_filter_in_trans[2] = 10.0;
+//		xi_filter_in_trans[0] = 1.414;
+//		xi_filter_in_trans[1] = 1.414;
+//		xi_filter_in_trans[2] = 1.414;
+//
+//		xi_filter_out[0] = 1.414;
+//		xi_filter_out[1] = 1.414;
+//		xi_filter_out[2] = 1.414;
+//		omega_n_filter_out[0] = 10.0;
+//		omega_n_filter_out[1] = 10.0;
+//		omega_n_filter_out[2] = 10.0;
+//
+//		xi_filter_in[0] = 1.414;
+//		xi_filter_in[1] = 1.414;
+//		xi_filter_in[2] = 1.414;
+//		omega_n_filter_in[0] = 20.0;
+//		omega_n_filter_in[1] = 20.0;
+//		omega_n_filter_in[2] = 20.0;
+
+    //	double ksi_pitch_out;
+    //	double ksi_yaw_out;
+    //	double omega_roll_out;
+    //	double omega_pitch_out;
+    //	double omega_yaw_out;
+
+
+
+//	double ksi_trans_out_z;
+//	double omega_trans_out_x;
+//	double omega_trans_out_y;
+//	double omega_trans_out_z;
+//
+//	double ksi_trans_in_x;
+//	double ksi_trans_in_y;
+//	double ksi_trans_in_z;
+//	double omega_trans_in_x;
+//	double omega_trans_in_y;
+//	double omega_trans_in_z;
+//
+//	double ksi_roll_out;
+//	double ksi_pitch_out;
+//	double ksi_yaw_out;
+//	double omega_roll_out;
+//	double omega_pitch_out;
+//	double omega_yaw_out;
+//
+//	double ksi_roll_in;
+//	double ksi_pitch_in;
+//	double ksi_yaw_in;
+//	double omega_roll_in;
+//	double omega_pitch_in;
+//	double omega_yaw_in;
 
 }
 
@@ -831,14 +1120,20 @@ void TeleopIMU::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
 		math_function::computeR(&gamma_temp[0], &R_temp_2[0]);
 		math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
 
-		state_feedback.pose.orientation.x = quaternion_2[1];
-		state_feedback.pose.orientation.y = quaternion_2[2];
-		state_feedback.pose.orientation.z = quaternion_2[3];
-		state_feedback.pose.orientation.w = quaternion_2[0];
+//		state_feedback.pose.orientation.x = quaternion_2[1];
+//		state_feedback.pose.orientation.y = quaternion_2[2];
+//		state_feedback.pose.orientation.z = quaternion_2[3];
+//		state_feedback.pose.orientation.w = quaternion_2[0];
 
         //transform the pose
-		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->pose.position.x) - sin(yaw_ini_slam)*(pose->pose.position.y);
-		state_feedback.pose.position.y = sin(yaw_ini_slam)*(pose->pose.position.x) + cos(yaw_ini_slam)*(pose->pose.position.y);
+//		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->pose.position.x) - sin(yaw_ini_slam)*(pose->pose.position.y);
+//		state_feedback.pose.position.y = sin(yaw_ini_slam)*(pose->pose.position.x) + cos(yaw_ini_slam)*(pose->pose.position.y);
+//		state_feedback.pose.position.z =  pose->pose.position.z;
+
+		//not transform the position:
+
+		state_feedback.pose.position.x =  pose->pose.position.x;
+		state_feedback.pose.position.y =  pose->pose.position.y;
 		state_feedback.pose.position.z =  pose->pose.position.z;
 
 	}
@@ -862,14 +1157,14 @@ void TeleopIMU::odometryCallback(const nav_msgs::OdometryConstPtr& odometry){
 		//state_feedback.velocity = odometry->twist.twist.linear;
 
 		//transform from SLAM original frame to NWU frame:
-		state_feedback.velocity.x = cos(yaw_ini_slam)*(odometry->twist.twist.linear.x) - sin(yaw_ini_slam)*(odometry->twist.twist.linear.y);
-		state_feedback.velocity.y = sin(yaw_ini_slam)*(odometry->twist.twist.linear.x) + cos(yaw_ini_slam)*(odometry->twist.twist.linear.y);
-		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
-
-		//transform from body-frame to reference frame:
-		state_feedback.velocity.x =  odometry->twist.twist.linear.x;
-		state_feedback.velocity.y =  odometry->twist.twist.linear.y;
-		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
+//		state_feedback.velocity.x = cos(yaw_ini_slam)*(odometry->twist.twist.linear.x) - sin(yaw_ini_slam)*(odometry->twist.twist.linear.y);
+//		state_feedback.velocity.y = sin(yaw_ini_slam)*(odometry->twist.twist.linear.x) + cos(yaw_ini_slam)*(odometry->twist.twist.linear.y);
+//		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
+//
+//		//transform from body-frame to reference frame:
+//		state_feedback.velocity.x =  odometry->twist.twist.linear.x;
+//		state_feedback.velocity.y =  odometry->twist.twist.linear.y;
+//		state_feedback.velocity.z =  odometry->twist.twist.linear.z;
 
 		//convert it to quaternion:
 		double R_temp[9];
@@ -1047,6 +1342,7 @@ void TeleopIMU::compute_V_nom(void)
 	/////////????//////////////
 	for(i=0;i<3;i++)
 	{
+		//P_nom_filter_m2[i] = 0; //test only
 		P_nom_filter_m2[i]=(a_1_out_trans[i]*P_nom[i]-a_1_out_trans[i]*P_nom_filter_m1[i]-
 												a_2_out_trans[i]*P_nom_filter_m2[i])*(T_sampling*time_scale_position)+P_nom_filter_m2[i];
 		P_nom_filter_m1[i]=P_nom_filter_m2[i]*(T_sampling*time_scale_position)+P_nom_filter_m1[i];
@@ -1064,7 +1360,7 @@ void TeleopIMU::compute_V_nom(void)
 	V_nom[0]=d_Px_nom;
 	V_nom[1]=d_Py_nom;
 	V_nom[2]=d_Pz_nom;
-//	V_nom[0]=0;V_nom[1]=0;V_nom[2]=0;//tuning only
+ 	//V_nom[0]=0;V_nom[1]=0;V_nom[2]=0;//tuning only
 }
 
 
@@ -1358,8 +1654,37 @@ double TeleopIMU::dot_product(double *a1, double *a2)
 
 
 
+void TeleopIMU::translation_eom(void)
+{
+//	//used in simulation:
+//	double P_sim[3];
+//	double V_sim[3];
+//	double gamma_sim[3];
+//	double m_sim;
+//	double g_sim; //acc due to gravity
 
+	//input is gamma_com and G
+	//convert it to quaternion:
+	double R_temp_2[9];
+	double quaternion_2[4];
 
+	math_function::computeR(&gamma_com[0], &R_temp_2[0]);
+
+	for(int i = 0; i < 3; i++)
+	{
+		P_sim[i] = P_sim[i]  + T_sampling*V_sim[i];
+	}
+	V_sim[0] = (V_sim[0] - R_temp_2[2]*G*T_sampling)/m_sim;
+	V_sim[1] = (V_sim[1] - R_temp_2[5]*G*T_sampling)/m_sim;
+	V_sim[2] = (V_sim[2] - R_temp_2[8]*G*T_sampling + m_sim*g_sim*T_sampling)/m_sim;
+
+//	V_sim[0] = V_sim[0] + ( F_com[0]*T_sampling)/m_sim;
+//	V_sim[1] = V_sim[1] + (F_com[1]*T_sampling)/m_sim;
+//	V_sim[2] = V_sim[2] + (F_com[2]*T_sampling)/m_sim;
+
+	printf( "\n  rotation matrix = [ %f, %f, %f],  thrust = %f, T_sampling = %f \n", R_temp_2[2], R_temp_2[5], R_temp_2[8], G, T_sampling);
+
+}
 
 
 

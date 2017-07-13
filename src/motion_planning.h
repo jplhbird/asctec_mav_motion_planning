@@ -285,6 +285,8 @@ private:
 	double r_nom;//=0;
 	//above, the variables used in the attitude control
 
+	int flag_control;
+
 
 	//////////the parameters in the pseudo inverse dynamics of attitude control loop
 	double gamma_nom_filter_m1[3];
@@ -306,6 +308,16 @@ private:
 	int slam_int; //flag determine if it is the initial time of SLAM
 	int slam_int_instant; //the intial instant
 	double yaw_ini_slam; //the yaw angle at the initial time, when SLAM is available
+
+
+	//used in simulation:
+	double P_sim[3];
+	double V_sim[3];
+	double gamma_sim[3];
+	double m_sim;
+	double g_sim; //acc due to gravity
+	void translation_eom(void);
+	int flag_sim;
 
 };
 
