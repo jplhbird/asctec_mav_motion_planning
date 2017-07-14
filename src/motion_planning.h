@@ -318,6 +318,8 @@ private:
 	double g_sim; //acc due to gravity
 	void translation_eom(void);
 	int flag_sim;
+	int flag_ini_control; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
+	int flag_mode_control; //used in the control mode selection , 1, 2, 3, initial value is 1,
 
 };
 

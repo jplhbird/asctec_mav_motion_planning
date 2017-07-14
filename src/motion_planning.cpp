@@ -200,6 +200,9 @@ pnh_("~/fcu")
     	flag_sim = 0;
     }
 
+	flag_ini_control = 0; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
+	flag_mode_control = 1; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
 
     //initial instant of SLAM
     slam_int = 0;
@@ -393,6 +396,14 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	double time_body;
 	double T_sampling;
 
+//	flag_ini_control = 1; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
+//	flag_mode_control = 1; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
+
+
+
+
+
 	{
 		//the feedback information of the position, velocity, and yaw angle:
 		//should be transformed from ENU to NED
@@ -492,6 +503,327 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 //		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
 
 	}
+
+
+	if ( ((rcdata_last.channel[5])<1800) & ((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
+	{
+		flag_ini_control = 1;
+	}
+	else if ( ((rcdata->channel[5])>4000) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
+	{
+		flag_ini_control = 2;
+	}
+	else if ( ((rcdata_last.channel[5])>4000) & ((rcdata->channel[5]) > 1800 ) & ((rcdata->channel[5]) < 2500))
+	{
+		flag_ini_control = 3;
+	}
+	else if ( ((rcdata->channel[5])>4000) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
+	{
+		flag_ini_control = 4;
+	}
+
+	switch (flag_ini_control){
+
+		case 0:
+		{
+			flag_ini_control=5;
+			flag_mode_control = 1;
+			break;
+		}
+
+		case 1:
+		{
+			//from 3 dof to 6 dof, should initialize carefully
+			flag_ini_control=5;
+			flag_mode_control = 2;
+
+			//initialize the original point, set the current position as the original point
+			LLA_0 = LLA;
+
+			//in GPS environment, the following function is used:
+			TeleopIMU::LLP_Euclidean(LLA);
+
+			//record the initial time
+			time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
+			{
+				flag_control = 1;  //accepts position commands
+				for (int i=0;i<3;i++)    //commanded value, control value and sensed value initialization
+				{
+					//P_com[i] = 0;
+					//P_nom[i] = 0;
+					//P_sen[i] = 0;
+					P_err[i] = 0;
+					P_err_int[i] = 0;
+
+					V_nom[i] = 0;
+					V_com[i] = 0;
+					V_ctrl[i] = 0;
+					//V_sen[i] = 0;
+					V_err[i] = 0;
+					V_err_int[i] = 0;
+
+					f_z_com=0;
+
+					F_nom[i] = 0;
+					F_com[i] = 0;
+					F_ctrl[i] = 0;
+
+					gamma_com[i] = 0;
+					gamma_nom[i] = 0;
+					//gamma_sen[i] = 0;
+					gamma_err[i] = 0;
+					gamma_err_int[i] = 0;
+					gamma_ctrl[i]=0;
+
+					omega_nom[i] = 0;
+					omega_com[i] = 0;
+					omega_ctrl[i] = 0;
+					//omega_sen[i] = 0;
+					omega_err[i] = 0;
+					omega_err_int[i] = 0;
+				}
+
+				for (int i=0;i<3;i++)  //the temp variables in the psedodifferentiator
+				{
+					V_nom_filter_m2[i]=0;
+					V_nom_filter_m1[i]=0;
+					P_nom_filter_m2[i]=0;
+					P_nom_filter_m1[i]=0;
+					omega_nom_filter_m2[i]=0;
+					omega_nom_filter_m1[i]=0;
+					gamma_nom_filter_m2[i]=0;
+					gamma_nom_filter_m1[i]=0;
+				}
+
+				phi_nom=0;     //the variables remember the value after filter in the inverse functions.
+				theta_nom=0;
+				psi_nom=0;
+				p_nom=0;
+				q_nom=0;
+				r_nom=0;
+				Px_nom=0;
+				Py_nom=0;
+				Pz_nom=0;
+				Vx_nom=0;
+				Vy_nom=0;
+				Vz_nom=0;  //the variables remember the value after filter in the inverse functions.
+				G=0;//initial total thrust
+
+				//yaw angle:
+				gamma_com[2] = gamma_sen[2];
+				gamma_nom[2] = gamma_sen[2];
+				gamma_nom_filter_m1[2]=gamma_sen[2];
+
+			//initialize when transition from 3DOF to 6 DOF
+				yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+				gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+				gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+				//reset_yaw_control(); //initialize the commands of yaw angle
+
+				G = rcdata->channel[2]/4096.0/0.5*m*g_; //obtain the relative mass when transition from 3dof to 6dof
+				G_6dof_init = G;  //record the thrust in the transition instant when from 3 DOF to 6 DOF
+				//m = G_6dof_init/g_;  //revise the mass accoording to the current total thrust command
+
+				//computeR(&gamma_com[0], &Rcom_filter_m1[0][0]); //set the initial value of rotation matrix
+		//		for(int i=0;i<3;i++)
+		//		{
+		//			for(int j=0;j<3;j++)
+		//			{
+		//				Rcom_filter_m1[i][j]=R_com[i][j];
+		//			}
+		//		}
+
+
+				P_nom[0] = P_sen[0];
+				P_nom[1] = P_sen[1];
+				P_nom[2] = P_sen[2];
+
+				Px_nom = P_sen[0];
+				Py_nom = P_sen[1];
+				Pz_nom = P_sen[2];
+
+				Vx_nom = 0;
+				Vy_nom = 0;
+				Vz_nom = 0;
+
+				P_nom_filter_m1[0] = P_sen[0]; //the filter value
+				P_nom_filter_m1[1] = P_sen[1];
+				P_nom_filter_m1[2] = P_sen[2];
+
+				P_nom_filter_m2[0] = 0;
+				P_nom_filter_m2[1] = 0;
+				P_nom_filter_m2[2] = 0;
+
+				V_nom_filter_m1[0] = 0;
+				V_nom_filter_m1[1] = 0;
+				V_nom_filter_m1[2] = 0;
+
+				V_nom_filter_m2[0] = 0;
+				V_nom_filter_m2[1] = 0;
+				V_nom_filter_m2[2] = 0;
+			}
+
+
+			break;
+		}
+
+		case 2:
+		{
+			//from 6 dof to hovering, fix the position commands,
+			flag_ini_control=5;
+			flag_mode_control = 3;
+
+			{
+				flag_control = 2;  //hovering mode
+				//yaw angle:
+				gamma_com[2] = gamma_sen[2];
+				gamma_nom[2] = gamma_sen[2];
+
+			//initialize when transition from 3DOF to 6 DOF
+				yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+				gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+				gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+
+				P_nom[0] = P_sen[0];
+				P_nom[1] = P_sen[1];
+				P_nom[2] = P_sen[2];
+			}
+
+
+			break;
+		}
+		case 3:
+		{
+			//from hovering to 6 dof, need not initialization
+			flag_ini_control=5;
+			flag_mode_control = 2;
+
+
+			break;
+
+		}
+		case 4:
+		{
+			//from 6 dof to 3 dof, need not initialization
+			flag_ini_control=5;
+			flag_mode_control = 1;
+
+
+			break;
+
+		}
+	}
+
+	if (flag_ini_control == 5)
+	{
+		//not initialization
+		switch (flag_mode_control)
+		{
+			case 1:
+			{
+				 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				 //note the rcdata is not the same with the command sent to LL from HL
+				 //msg.x msg.y units: rad
+
+				 msg.x =  (rcdata->channel[0]-2128) *k_stick_/1000.0*M_PI/180.0;  //pitch
+				 msg.y =  (-rcdata->channel[1] + 2016) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
+				 msg.yaw = (-rcdata->channel[3] + 2048) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
+
+				 msg.z = rcdata->channel[2]/4096.0;
+
+				 break;
+
+			}
+			case 2:
+			{
+				{
+				//msg.type = asctec_hl_comm::mav_ctrl::position;
+				global_position_cmd.type = asctec_hl_comm::mav_ctrl::position;
+
+				if (flag_rc_cmd == 1)
+				{
+					//position cmd is from RC transmitter, transmitter sends velocity commands:
+
+					//X front, Y left:
+					global_position_cmd.x =  global_position_cmd.x - T_sampling* (rcdata->channel[0]-2128) /2047.0*config_motion.max_velocity_xy;
+					global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata->channel[1] + 2016) /2047.0*config_motion.max_velocity_xy;
+					global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata->channel[3] + 2048) /2047.0*config_motion.max_velocity_yaw;
+					global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+
+					//unit:m/s
+					global_position_cmd.v_max_xy = 5;
+					global_position_cmd.v_max_z= 5;
+
+					//modified on Feb. 13, 2017, cancel this massege:
+					//msg = global_position_cmd;
+
+					//added on Feb. 2017, position control run in PC
+
+					//ENU frame to NED frame:
+					P_nom[0] = global_position_cmd.x;
+					P_nom[1] = -global_position_cmd.y;
+					P_nom[2] = -global_position_cmd.z;
+					gamma_nom[2] = -global_position_cmd.yaw;
+				}
+
+				//run the position control law, all expressed in NED frame
+				compute_V_nom();
+				compute_F_nom();
+				translate_outerloop_controller();
+				translate_innerloop_controller();
+		 		compute_gamma_nom();
+				compute_omega_nom();
+				rotate_outerloop_controller();
+
+
+				//generate the thrust and attitude commands, notice, should be in in ENU frame:
+
+				msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				//note the rcdata is not the same with the command sent to LL from HL
+				msg.x =  gamma_nom[1];  //pitch angle
+				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+				msg.z = 0.5*G/(m*g_);
+				}
+
+				break;
+
+			}
+			case 3:
+			{
+				//hovering mode:
+				//run the position control law, all expressed in NED frame
+				compute_V_nom();
+				compute_F_nom();
+				translate_outerloop_controller();
+				translate_innerloop_controller();
+				compute_gamma_nom();
+				compute_omega_nom();
+				rotate_outerloop_controller();
+
+
+				//generate the thrust and attitude commands, notice, should be in in ENU frame:
+				msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				//note the rcdata is not the same with the command sent to LL from HL
+				msg.x =  gamma_nom[1];  //pitch angle
+				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+				msg.z = 0.5*G/(m*g_);
+
+				break;
+
+			}
+		}
+
+	}
+
+
+
+
 
 	if((rcdata->channel[5]) <= 1800 )
 	{
@@ -773,8 +1105,8 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		printf( "\n  nominal velocity = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
 		printf( "\n  commanded velocity = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
 		printf( "\n  nominal force = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
-		printf( "\n  commmanded force = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
-		printf( "\n  commmanded force without gravity = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+		printf( "\n  commanded force = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+		printf( "\n  commanded force without gravity = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
 		printf( "\n  sensed Euler angles = [ %f, %f, %f] \n", gamma_sen[0], gamma_sen[1], gamma_sen[2]);
 		printf( "\n  sensed position = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
 		printf( "\n  sensed velocity = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
