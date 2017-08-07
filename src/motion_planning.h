@@ -114,6 +114,8 @@ private:
     ros::Subscriber flag_cmd_sub;
     ros::Subscriber cmdfromgene_sub;
 
+    ros::Timer timer_pubstate;
+
 
     sensor_fusion_comm::ExtState state_feedback;
 
@@ -320,6 +322,8 @@ private:
 	int flag_sim;
 	int flag_ini_control; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
 	int flag_mode_control; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
+	void timerCallback(const ros::TimerEvent& event);
 
 };
 

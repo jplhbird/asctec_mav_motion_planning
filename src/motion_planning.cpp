@@ -5,6 +5,7 @@
 
 
 #include "motion_planning.h"
+//#include <QTimer>
 
 
 
@@ -217,7 +218,15 @@ pnh_("~/fcu")
     state_feedback.pose.position.x=0;
     state_feedback.pose.position.y=0;
     state_feedback.pose.position.z=0;
+
+    timer_pubstate = n.createTimer(ros::Duration(0.01), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
  }
+
+
+void TeleopIMU::timerCallback(const ros::TimerEvent& event){
+	ROS_INFO_STREAM("test timer callback" );
+	ext_state.publish(state_feedback);
+}
 
 
 void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd){
