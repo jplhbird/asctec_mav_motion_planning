@@ -14,6 +14,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "math_function.h"
+#include <tf/transform_datatypes.h>
 
 //#include "sensor_msgs/Imu.h"
 
@@ -34,6 +35,8 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_fusion_comm/ExtState.h>
 #include <asctec_mav_motion_planning/flag_cmd.h>
+#include <asctec_hl_comm/DoubleArrayStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 
 // dynamic reconfigure includes
@@ -65,6 +68,8 @@ private:
     void imudataCallback(const asctec_hl_comm::mav_imuConstPtr&   imudata);
 
     void flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd);
+
+    void debugdataCallback(const asctec_hl_comm::DoubleArrayStampedConstPtr& debugdata);
 
 	//the topic name is still under discussion, from the SLAM module
 	void poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose);
@@ -100,6 +105,8 @@ private:
     ros::Publisher ext_state;
     ros::Publisher position_gps;  //publish the position from GPS
 
+    ros::Publisher pose_ssdk; //publish pose
+
     ros::Subscriber pose_sub_;  //subscribe the current position of the UAV, from SLAM module
     ros::Subscriber odometry_sub_;  //the topic name is still under discussion, from the SLAM module
 
@@ -113,6 +120,8 @@ private:
 
     ros::Subscriber flag_cmd_sub;
     ros::Subscriber cmdfromgene_sub;
+
+    ros::Subscriber debugdata_sub;  //Subscribe the debug data, from the HLP
 
     ros::Timer timer_pubstate;
 

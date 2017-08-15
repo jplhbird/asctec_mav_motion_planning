@@ -6,7 +6,7 @@
 
 #include "motion_planning.h"
 //#include <QTimer>
-
+#include <asctec_hl_comm/mav_ctrl.h>
 
 
 TeleopIMU::TeleopIMU():
@@ -28,6 +28,7 @@ pnh_("~/fcu")
 
 	//publish gps position and velocity information:
 	position_gps = n.advertise<nav_msgs::Odometry>("gpsinformation",1);
+	pose_ssdk = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("fcu/pose",1);
 
 
     //should run rosrun xsens_driver mtnode.py in order to run the xsens_driver node,
@@ -45,6 +46,7 @@ pnh_("~/fcu")
 	imu_custom_sub_ =n.subscribe<asctec_hl_comm::mav_imu>  ("fcu/imu_custom", 1, &TeleopIMU::imudataCallback, this);
 	flag_cmd_sub = n.subscribe<asctec_mav_motion_planning::flag_cmd>("flag_cmd", 1, &TeleopIMU::flagcmdCallback, this); //flag determine which device will sends the position cmd
 	cmdfromgene_sub = n.subscribe<asctec_hl_comm::mav_ctrl>("trajtodriver", 1, &TeleopIMU::minimumcmdCallback, this);
+	debugdata_sub = n.subscribe<asctec_hl_comm::DoubleArrayStamped>("fcu/debug", 1, &TeleopIMU::debugdataCallback, this);
 
 
 	//config_motion = asctec_mav_motion_planning::motion_planning_paraConfig::__getDefault__();
@@ -219,13 +221,51 @@ pnh_("~/fcu")
     state_feedback.pose.position.y=0;
     state_feedback.pose.position.z=0;
 
-    timer_pubstate = n.createTimer(ros::Duration(0.01), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
+    timer_pubstate = n.createTimer(ros::Duration(0.005), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
  }
 
 
 void TeleopIMU::timerCallback(const ros::TimerEvent& event){
-	ROS_INFO_STREAM("test timer callback" );
+	//ROS_INFO_STREAM("test timer callback" );
 	ext_state.publish(state_feedback);
+
+	//geometry_msgs::PoseWithCovarianceStampedConstPtr &msg;
+
+	geometry_msgs::PoseWithCovarianceStamped msg;
+	//double covariance[36] = {0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17};
+
+	msg.pose.pose.position = state_feedback.pose.position;
+	msg.pose.pose.orientation = state_feedback.pose.orientation;
+	//msg.pose.covariance = {0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17};
+
+	msg.pose.covariance[0] = 0.1;
+	msg.pose.covariance[7] = 0.1;
+	msg.pose.covariance[14] = 0.1;
+	msg.pose.covariance[21] = 0.17;
+	msg.pose.covariance[28] = 0.17;
+	msg.pose.covariance[35] = 0.17;
+
+
+	pose_ssdk.publish(msg);
+}
+
+void TeleopIMU::debugdataCallback(const asctec_hl_comm::DoubleArrayStampedConstPtr& debugdata){
+
+//	echo " ### plotting x, y, z and yaw commands that arrived at the HLP ###"
+//	rqt_plot $1/fcu/debug/data[31]:data[32]:data[33]:data[34]
+
+	double cmd_hl[4];
+
+	for (int i=0;i<4;i++) {
+		cmd_hl[i] = debugdata->data[31+i];
+	}
+
+	double yaw = tf::getYaw(state_feedback.pose.orientation); //feedback yaw, unit: rad
+
+	ROS_INFO( "cmd to HL position control in ENU coordinates (units: m/rad)!!! = [ %f, %f, %f, %f]", cmd_hl[0], -cmd_hl[1], -cmd_hl[2], -debugdata->data[34]);
+	ROS_INFO( "feedback to HL position control in ENU coordinates (units: m/rad) !!! = [ %f, %f, %f, %f]",
+			debugdata->data[13], -debugdata->data[14], -debugdata->data[15], yaw);
+
 }
 
 
@@ -364,15 +404,15 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 		math_function::computeR(&gamma_temp[0], &R_temp_2[0]);
 		math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
 
-		state_feedback.pose.orientation.x = quaternion_2[1];
-		state_feedback.pose.orientation.y = quaternion_2[2];
-		state_feedback.pose.orientation.z = quaternion_2[3];
-		state_feedback.pose.orientation.w = quaternion_2[0];
+//		state_feedback.pose.orientation.x = quaternion_2[1];
+//		state_feedback.pose.orientation.y = quaternion_2[2];
+//		state_feedback.pose.orientation.z = quaternion_2[3];
+//		state_feedback.pose.orientation.w = quaternion_2[0];
 	}
 
 
-
-	ext_state.publish(state_feedback);
+//if use the opensource position control, comment it:
+	//ext_state.publish(state_feedback);
 
 	//test the frequency of the data:
 //	int64_t ts_usec;
@@ -477,7 +517,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	T_sampling = 0.05;
 
  	//ROS_INFO_STREAM("current time (time_body)"<<(time_body));
- 	ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
+ 	//ROS_INFO_STREAM("current time (T_sampling)"<<(T_sampling));
 
 
 	asctec_hl_comm::mav_ctrl msg;
@@ -1093,9 +1133,9 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		//ENU frame
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
-		ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
+//		ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
+//		ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
+//		ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
 
         //ENU frame, in rad
 		global_position_cmd.yaw = (float)gamma_temp[2];
@@ -1105,25 +1145,27 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	if (flag_rc_cmd == 1)
 	{
 		//only receive the commands from RC transmitter
-		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
-		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
-		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
-		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
-		printf("commanded global position= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
-		printf( "\n  commanded position = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
-		printf( "\n  nominal velocity = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
-		printf( "\n  commanded velocity = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
-		printf( "\n  nominal force = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
-		printf( "\n  commanded force = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
-		printf( "\n  commanded force without gravity = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
-		printf( "\n  sensed Euler angles = [ %f, %f, %f] \n", gamma_sen[0], gamma_sen[1], gamma_sen[2]);
-		printf( "\n  sensed position = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
-		printf( "\n  sensed velocity = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
-		printf( "\n  position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
+		//if use the open source, comment the display:
+//		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
+//		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
+//		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
+//		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
+//		printf("commanded global position= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
+//		printf( "\n  commanded position = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
+//		printf( "\n  nominal velocity = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
+//		printf( "\n  commanded velocity = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
+//		printf( "\n  nominal force = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
+//		printf( "\n  commanded force = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+//		printf( "\n  commanded force without gravity = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+//		printf( "\n  sensed Euler angles = [ %f, %f, %f] \n", gamma_sen[0], gamma_sen[1], gamma_sen[2]);
+//		printf( "\n  sensed position = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
+//		printf( "\n  sensed velocity = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+//		printf( "\n  position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
 
-		llcmd_pub_acc.publish(msg);
+		//llcmd_pub_acc.publish(msg);  //if use the open source, comment this line
 	}
 
+	//if use the opensource hl position control, comment it:
     ext_state.publish(state_feedback);
 
     rcdata_last = *rcdata; //record the rcdata of last time
@@ -1451,6 +1493,7 @@ void TeleopIMU::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
 		//ENU frame
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
+
 		//revise the yaw angle considering the initial angle
 		gamma_temp[2] = gamma_temp[2] + yaw_ini_slam;
 
@@ -1465,6 +1508,9 @@ void TeleopIMU::poseCallback(const geometry_msgs::PoseStamped::ConstPtr& pose){
 //		state_feedback.pose.orientation.y = quaternion_2[2];
 //		state_feedback.pose.orientation.z = quaternion_2[3];
 //		state_feedback.pose.orientation.w = quaternion_2[0];
+
+		//not revise the yaw angle:
+		state_feedback.pose.orientation =pose->pose.orientation;
 
         //transform the pose
 //		state_feedback.pose.position.x = cos(yaw_ini_slam)*(pose->pose.position.x) - sin(yaw_ini_slam)*(pose->pose.position.y);
