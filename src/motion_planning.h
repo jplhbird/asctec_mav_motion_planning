@@ -325,7 +325,11 @@ private:
 
 	ros::Timer timer_pubstate;
 
+	double T_sampling_global;
+
 	void timerCallback(const ros::TimerEvent& event);
+
+	int int_dis;
 
 };
 

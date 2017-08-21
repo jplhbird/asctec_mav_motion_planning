@@ -197,7 +197,7 @@ pnh_("~/fcu")
     	}
     	m_sim = 1.31;
     	g_sim = 9.8;
-    	flag_sim = 0;
+    	flag_sim = 1;
     }
 
 	flag_ini_control = 0; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
@@ -218,8 +218,12 @@ pnh_("~/fcu")
     state_feedback.pose.position.y=0;
     state_feedback.pose.position.z=0;
 
-    timer_pubstate = n.createTimer(ros::Duration(0.005), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
- }
+    T_sampling_global = 0.01;
+    timer_pubstate = n.createTimer(ros::Duration(T_sampling_global), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
+
+    int_dis = 0;
+
+}
 
 
 void TeleopIMU::timerCallback(const ros::TimerEvent& event){
@@ -230,6 +234,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 	//roll and pitch angle cmd  =real_angle*1000/K_stick
 	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
 
+	int_dis ++;
 	int64_t ts_usec;
 	double ts_sec;
 	double time_body;
@@ -266,8 +271,11 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 			{
 				translation_eom();
 
-				printf( "\n  simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
-				printf( "\n  simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+
+				if (int_dis%10 == 0){
+					printf( "\n  simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
+					printf( "\n  simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+				}
 			}
 		}
 
@@ -299,10 +307,12 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 	//T_sampling = time_body-time_doby_last;
 	time_doby_last = time_body;
 
-	T_sampling = 0.05;
+	T_sampling = T_sampling_global;
 
- 	//ROS_INFO_STREAM("start time of each control period: "<<(time_body));
- 	ROS_INFO_STREAM("T_sampling: "<<(T_sampling));
+	if (int_dis%10 == 0){
+		//ROS_INFO_STREAM("start time of each control period: "<<(time_body));
+		ROS_INFO_STREAM("T_sampling: "<<(T_sampling));
+	}
 
 
 	asctec_hl_comm::mav_ctrl msg;
@@ -678,37 +688,56 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 		//ENU frame
 		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
 
-		ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
-		ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
+		if (int_dis%10 == 0){
+			ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
+			ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
+			ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
+		}
 
         //ENU frame, in rad
 		global_position_cmd.yaw = (float)gamma_temp[2];
 	}
 
+	if(msg.z < 0)
+		msg.z = 0;
+	else if(msg.z > 1)
+		msg.z = 1;
 
-	if ((flag_mode_control == 2) | (flag_mode_control == 3))
-	//if (flag_rc_cmd == 1)
-	{   //show the variables in the control
-		//only receive the commands from RC transmitter
-		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
-		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
-		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
-		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
-		printf("commanded global position (ENU)= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
-		printf( "commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
-		printf( "nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
-		printf( "commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
-		printf( "nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
-		printf( "commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
-		printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
-		printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
-		printf( "sensed position (NED) = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
-		printf( "sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
-		printf( "position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
 
-		printf( "flag_mode_control =  %d  \n", flag_mode_control);
+	if (int_dis%10 == 0)
+	{
+
+		if ((flag_mode_control == 2) | (flag_mode_control == 3))
+		//if (flag_rc_cmd == 1)
+		{   //show the variables in the control
+			//only receive the commands from RC transmitter
+	//		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
+	//		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
+	//		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
+	//		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
+			ROS_INFO("send to HLP (rad, rand/s, 0-1) = [ %f, %f, %f, %f]", msg.x, msg.y, msg.z, msg.yaw);
+			printf("commanded global position (ENU)= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
+			printf( "commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
+			printf( "sensed position (NED) = [ %f, %f, %f, %f] \n ", P_sen[0], P_sen[1], P_sen[2], gamma_sen[2]);
+
+			printf( "nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
+			printf( "commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
+			printf( "sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+
+			printf( "nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
+			printf( "commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+			printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+			printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
+
+
+			printf( "position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
+
+			printf( "flag_mode_control =  %d  \n", flag_mode_control);
+		}
 	}
+
+
+
 
 	llcmd_pub_acc.publish(msg); //send commands to HLP
 
@@ -721,7 +750,10 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 	ts_usec_finish = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
 	time_period =(double)(ts_usec_finish - ts_usec)/1.0e6;  //actual time used in calculation
 
- 	ROS_INFO_STREAM("Time of each control period: "<<(time_period));
+	if (int_dis%10 == 0){
+
+		ROS_INFO_STREAM("Time of each control period: "<<(time_period));
+	}
 
 
 
@@ -2301,7 +2333,7 @@ void TeleopIMU::translation_eom(void)
 //	V_sim[1] = V_sim[1] + (F_com[1]*T_sampling)/m_sim;
 //	V_sim[2] = V_sim[2] + (F_com[2]*T_sampling)/m_sim;
 
-	printf( "\n  rotation matrix = [ %f, %f, %f],  thrust = %f, T_sampling = %f \n", R_temp_2[2], R_temp_2[5], R_temp_2[8], G, T_sampling);
+	//printf( "\n  rotation matrix = [ %f, %f, %f],  thrust = %f, T_sampling = %f \n", R_temp_2[2], R_temp_2[5], R_temp_2[8], G, T_sampling);
 
 }
 
