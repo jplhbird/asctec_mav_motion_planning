@@ -467,7 +467,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 	T_sampling = 0.05;
 
- 	//ROS_INFO_STREAM("current time (time_body)"<<(time_body));
+ 	//ROS_INFO_STREAM("start time of each control period: "<<(time_body));
  	ROS_INFO_STREAM("T_sampling: "<<(T_sampling));
 
 
@@ -517,7 +517,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	{
 		flag_ini_control = 3;
 	}
-	else if ( ((rcdata->channel[5])>4000) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
+	else if ( ((rcdata->channel[5])<1800) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
 	{
 		flag_ini_control = 4;
 	}
@@ -862,23 +862,32 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
 		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
 		printf("commanded global position (ENU)= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
-		printf( "\n  commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
-		printf( "\n  nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
-		printf( "\n  commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
-		printf( "\n  nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
-		printf( "\n  commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
-		printf( "\n  commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
-		printf( "\n  sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
-		printf( "\n  sensed position (NED) = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
-		printf( "\n  sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
-		printf( "\n  position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
+		printf( "commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
+		printf( "nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
+		printf( "commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
+		printf( "nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
+		printf( "commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+		printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+		printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
+		printf( "sensed position (NED) = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
+		printf( "sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+		printf( "position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
 
-		llcmd_pub_acc.publish(msg);
+		printf( "flag_mode_control =  %d  \n", flag_mode_control);
 	}
+
+	llcmd_pub_acc.publish(msg); //send commands to HLP
 
     ext_state.publish(state_feedback);
 
     rcdata_last = *rcdata; //record the rcdata of last time
+
+    int64_t ts_usec_finish;
+    double time_period;
+	ts_usec_finish = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	time_period =(double)(ts_usec_finish - ts_usec)/1.0e6;  //actual time used in calculation
+
+ 	ROS_INFO_STREAM("Time of each control period: "<<(time_period));
 
 }
 
