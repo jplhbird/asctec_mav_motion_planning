@@ -122,6 +122,8 @@ private:
 
     asctec_hl_comm::mav_rcdata rcdata_last; //record the rcdata last time
 
+    asctec_hl_comm::mav_rcdata rcdata_current; //record the rcdata current time
+
     //determine if the RC transmitter sends the position commands
     int flag_rc_cmd;
 
@@ -320,6 +322,10 @@ private:
 	int flag_sim;
 	int flag_ini_control; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
 	int flag_mode_control; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
+	ros::Timer timer_pubstate;
+
+	void timerCallback(const ros::TimerEvent& event);
 
 };
 

@@ -217,7 +217,515 @@ pnh_("~/fcu")
     state_feedback.pose.position.x=0;
     state_feedback.pose.position.y=0;
     state_feedback.pose.position.z=0;
+
+    timer_pubstate = n.createTimer(ros::Duration(0.005), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
  }
+
+
+void TeleopIMU::timerCallback(const ros::TimerEvent& event){
+	//k_stick_yaw_
+	//int k_stick_;
+
+	//the command is in real angle and real angular velocity
+	//roll and pitch angle cmd  =real_angle*1000/K_stick
+	//yaw cmd=real_anglular_velocity*1000/k_stick_yaw,
+
+	int64_t ts_usec;
+	double ts_sec;
+	double time_body;
+	double T_sampling;
+
+//	flag_ini_control = 1; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
+//	flag_mode_control = 1; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
+	{
+		//the feedback information of the position, velocity, and yaw angle:
+		//should be transformed from ENU to NED
+		//the control law is expressed in NED
+		//the feedback information is expressed in ENU:
+
+		//real world, not simulation:
+			P_sen[0] = state_feedback.pose.position.x;
+			P_sen[1] = -state_feedback.pose.position.y;
+			P_sen[2] = -state_feedback.pose.position.z;
+
+			V_sen[0] = state_feedback.velocity.x;
+			V_sen[1] = -state_feedback.velocity.y;
+			V_sen[2] = -state_feedback.velocity.z;
+
+		if(flag_sim == 1)
+		{//simulation:
+			state_feedback.pose.position.x = P_sim[0];
+			state_feedback.pose.position.y = -P_sim[1];
+			state_feedback.pose.position.z = -P_sim[2];
+
+			state_feedback.velocity.x= V_sim[0];
+			state_feedback.velocity.y = -V_sim[1];
+			state_feedback.velocity.z = -V_sim[2];
+			if(flag_sim == 1)
+			{
+				translation_eom();
+
+				printf( "\n  simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
+				printf( "\n  simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+			}
+		}
+
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = state_feedback.pose.orientation.x;
+		quaternion[2] = state_feedback.pose.orientation.y;
+		quaternion[3] = state_feedback.pose.orientation.z;
+		quaternion[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		//NED frame:
+		gamma_sen[0] = gamma_temp[0];
+		gamma_sen[1] = -gamma_temp[1];
+		gamma_sen[2] = -gamma_temp[2];
+	}
+
+
+	//notice T_sampling, very important:
+	ts_usec = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	time_body =(double)(ts_usec-time)/1.0e6;  //actual time used in calculation
+	//T_sampling = time_body-time_doby_last;
+	time_doby_last = time_body;
+
+	T_sampling = 0.05;
+
+ 	//ROS_INFO_STREAM("start time of each control period: "<<(time_body));
+ 	ROS_INFO_STREAM("T_sampling: "<<(T_sampling));
+
+
+	asctec_hl_comm::mav_ctrl msg;
+
+	if  ((rcdata_current.channel[5]) < 1800 )
+	{
+		 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+		 //note the rcdata is not the same with the command sent to LL from HL
+		 //msg.x msg.y units: rad
+
+		 msg.x =  (rcdata_current.channel[0]-2128) *k_stick_/1000.0*M_PI/180.0;  //pitch
+		 msg.y =  (-rcdata_current.channel[1] + 2016) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
+		 msg.yaw = (-rcdata_current.channel[3] + 2048) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
+
+		 msg.z = rcdata_current.channel[2]/4096.0;
+	}
+
+	if (((rcdata_current.channel[5]) > 1800 ) & ((rcdata_current.channel[5]) < 2500))
+	{
+//		msg.type = asctec_hl_comm::mav_ctrl::velocity_body;
+//
+//
+////		  ctrlLL.x = helper::clamp<short>(-2047, 2047, (short)(msg.x / config_.max_velocity_xy * 2047.0));
+////		  ctrlLL.y = helper::clamp<short>(-2047, 2047, (short)(msg.y / config_.max_velocity_xy * 2047.0));
+////		  ctrlLL.yaw = helper::clamp<short>(-2047, 2047, (short)(msg.yaw / config_.max_velocity_yaw* 2047.0));
+////		  ctrlLL.z = helper::clamp<short>(-2047, 2047, (short)(msg.z / config_.max_velocity_z * 2047.0)) + 2047; // "zero" is still 2047!
+//
+//		msg.x = -(rcdata->channel[0]-2047) /2047.0*config_motion.max_velocity_xy;
+//		msg.y = (-rcdata->channel[1] + 2047) /2047.0*config_motion.max_velocity_xy;
+//		msg.yaw = (-rcdata->channel[3] + 2047) /2047.0*config_motion.max_velocity_yaw;
+//		msg.z = ( rcdata->channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+
+	}
+
+
+	if ( ((rcdata_last.channel[5])<1800) & ((rcdata_current.channel[5]) > 1800 ) & ((rcdata_current.channel[5]) < 2500))
+	{
+		flag_ini_control = 1;
+	}
+	else if ( ((rcdata_current.channel[5])>4000) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
+	{
+		flag_ini_control = 2;
+	}
+	else if ( ((rcdata_last.channel[5])>4000) & ((rcdata_current.channel[5]) > 1800 ) & ((rcdata_current.channel[5]) < 2500))
+	{
+		flag_ini_control = 3;
+	}
+	else if ( ((rcdata_current.channel[5])<1800) & ((rcdata_last.channel[5]) > 1800 ) & ((rcdata_last.channel[5]) < 2500))
+	{
+		flag_ini_control = 4;
+	}
+
+	switch (flag_ini_control){
+
+		case 0:
+		{
+			flag_ini_control=5;
+			flag_mode_control = 1;
+			break;
+		}
+
+		case 1:
+		{
+			//from 3 dof to 6 dof, should initialize carefully
+			flag_ini_control=5;
+			flag_mode_control = 2;
+
+			//initialize the original point, set the current position as the original point
+			LLA_0 = LLA;
+
+			//in GPS environment, the following function is used:
+			TeleopIMU::LLP_Euclidean(LLA);
+
+			//record the initial time
+			time=(uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+
+			{
+				flag_control = 1;  //accepts position commands
+				for (int i=0;i<3;i++)    //commanded value, control value and sensed value initialization
+				{
+					//P_com[i] = 0;
+					//P_nom[i] = 0;
+					//P_sen[i] = 0;
+					P_err[i] = 0;
+					P_err_int[i] = 0;
+
+					V_nom[i] = 0;
+					V_com[i] = 0;
+					V_ctrl[i] = 0;
+					//V_sen[i] = 0;
+					V_err[i] = 0;
+					V_err_int[i] = 0;
+
+					f_z_com=0;
+
+					F_nom[i] = 0;
+					F_com[i] = 0;
+					F_ctrl[i] = 0;
+
+					gamma_com[i] = 0;
+					gamma_nom[i] = 0;
+					//gamma_sen[i] = 0;
+					gamma_err[i] = 0;
+					gamma_err_int[i] = 0;
+					gamma_ctrl[i]=0;
+
+					omega_nom[i] = 0;
+					omega_com[i] = 0;
+					omega_ctrl[i] = 0;
+					//omega_sen[i] = 0;
+					omega_err[i] = 0;
+					omega_err_int[i] = 0;
+				}
+
+				for (int i=0;i<3;i++)  //the temp variables in the psedodifferentiator
+				{
+					V_nom_filter_m2[i]=0;
+					V_nom_filter_m1[i]=0;
+					P_nom_filter_m2[i]=0;
+					P_nom_filter_m1[i]=0;
+					omega_nom_filter_m2[i]=0;
+					omega_nom_filter_m1[i]=0;
+					gamma_nom_filter_m2[i]=0;
+					gamma_nom_filter_m1[i]=0;
+				}
+
+				phi_nom=0;     //the variables remember the value after filter in the inverse functions.
+				theta_nom=0;
+				psi_nom=0;
+				p_nom=0;
+				q_nom=0;
+				r_nom=0;
+				Px_nom=0;
+				Py_nom=0;
+				Pz_nom=0;
+				Vx_nom=0;
+				Vy_nom=0;
+				Vz_nom=0;  //the variables remember the value after filter in the inverse functions.
+				G=0;//initial total thrust
+
+				//yaw angle:
+				gamma_com[2] = gamma_sen[2];
+				gamma_nom[2] = gamma_sen[2];
+				gamma_nom_filter_m1[2]=gamma_sen[2];
+
+			//initialize when transition from 3DOF to 6 DOF
+				yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+				gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+				gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+				//reset_yaw_control(); //initialize the commands of yaw angle
+
+				G = rcdata_current.channel[2]/4096.0/0.5*m*g_; //obtain the relative mass when transition from 3dof to 6dof
+				G_6dof_init = G;  //record the thrust in the transition instant when from 3 DOF to 6 DOF
+				//m = G_6dof_init/g_;  //revise the mass accoording to the current total thrust command
+
+				//computeR(&gamma_com[0], &Rcom_filter_m1[0][0]); //set the initial value of rotation matrix
+		//		for(int i=0;i<3;i++)
+		//		{
+		//			for(int j=0;j<3;j++)
+		//			{
+		//				Rcom_filter_m1[i][j]=R_com[i][j];
+		//			}
+		//		}
+
+
+				P_nom[0] = P_sen[0];
+				P_nom[1] = P_sen[1];
+				P_nom[2] = P_sen[2];
+
+				Px_nom = P_sen[0];
+				Py_nom = P_sen[1];
+				Pz_nom = P_sen[2];
+
+				Vx_nom = 0;
+				Vy_nom = 0;
+				Vz_nom = 0;
+
+				P_nom_filter_m1[0] = P_sen[0]; //the filter value
+				P_nom_filter_m1[1] = P_sen[1];
+				P_nom_filter_m1[2] = P_sen[2];
+
+				P_nom_filter_m2[0] = 0;
+				P_nom_filter_m2[1] = 0;
+				P_nom_filter_m2[2] = 0;
+
+				V_nom_filter_m1[0] = 0;
+				V_nom_filter_m1[1] = 0;
+				V_nom_filter_m1[2] = 0;
+
+				V_nom_filter_m2[0] = 0;
+				V_nom_filter_m2[1] = 0;
+				V_nom_filter_m2[2] = 0;
+			}
+
+
+			break;
+		}
+
+		case 2:
+		{
+			//from 6 dof to hovering, fix the position commands,
+			flag_ini_control=5;
+			flag_mode_control = 3;
+
+			{
+				flag_control = 2;  //hovering mode
+				//yaw angle:
+				gamma_com[2] = gamma_sen[2];
+				gamma_nom[2] = gamma_sen[2];
+
+			//initialize when transition from 3DOF to 6 DOF
+				yaw_6DOF_init = gamma_sen[2]; //when transition, record the current yaw angle
+				gamma_com[2] = yaw_6DOF_init;  //initialize the commands of yaw angle
+				gamma_nom[2] = yaw_6DOF_init;   //initialize the commands of yaw angle
+
+				P_nom[0] = P_sen[0];
+				P_nom[1] = P_sen[1];
+				P_nom[2] = P_sen[2];
+			}
+
+
+			break;
+		}
+		case 3:
+		{
+			//from hovering to 6 dof, need not initialization
+			flag_ini_control=5;
+			flag_mode_control = 2;
+
+
+			break;
+
+		}
+		case 4:
+		{
+			//from 6 dof to 3 dof, need not initialization
+			flag_ini_control=5;
+			flag_mode_control = 1;
+
+
+			break;
+
+		}
+	}
+
+	if (flag_ini_control == 5)
+	{
+		//not initialization
+		switch (flag_mode_control)
+		{
+			case 1:
+			{
+				 msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				 //note the rcdata is not the same with the command sent to LL from HL
+				 //msg.x msg.y units: rad
+
+				 msg.x =  (rcdata_current.channel[0]-2128) *k_stick_/1000.0*M_PI/180.0;  //pitch
+				 msg.y =  (-rcdata_current.channel[1] + 2016) *k_stick_/1000.0*M_PI/180.0;   //opposite direction, roll
+				 msg.yaw = (-rcdata_current.channel[3] + 2048) *k_stick_yaw_/1000.0*M_PI/180.0;   //opposite direction
+
+				 msg.z = rcdata_current.channel[2]/4096.0;
+
+				 break;
+
+			}
+			case 2:
+			{
+				{
+				//msg.type = asctec_hl_comm::mav_ctrl::position;
+				global_position_cmd.type = asctec_hl_comm::mav_ctrl::position;
+
+				if (flag_rc_cmd == 1)
+				{
+					//position cmd is from RC transmitter, transmitter sends velocity commands:
+
+					//X front, Y left:
+					global_position_cmd.x =  global_position_cmd.x - T_sampling* (rcdata_current.channel[0]-2128) /2047.0*config_motion.max_velocity_xy;
+					global_position_cmd.y =  global_position_cmd.y + T_sampling* (-rcdata_current.channel[1] + 2016) /2047.0*config_motion.max_velocity_xy;
+					global_position_cmd.yaw =  global_position_cmd.yaw  + T_sampling* (-rcdata_current.channel[3] + 2048) /2047.0*config_motion.max_velocity_yaw;
+					global_position_cmd.z = global_position_cmd.z + T_sampling* ( rcdata_current.channel[2]-2047)/2047.0*config_motion.max_velocity_z;
+
+					//unit:m/s
+					global_position_cmd.v_max_xy = 5;
+					global_position_cmd.v_max_z= 5;
+
+					//modified on Feb. 13, 2017, cancel this massege:
+					//msg = global_position_cmd;
+
+					//added on Feb. 2017, position control run in PC
+
+					//ENU frame to NED frame:
+					P_nom[0] = global_position_cmd.x;
+					P_nom[1] = -global_position_cmd.y;
+					P_nom[2] = -global_position_cmd.z;
+					gamma_nom[2] = -global_position_cmd.yaw;
+				}
+
+				//run the position control law, all expressed in NED frame
+				compute_V_nom();
+				compute_F_nom();
+				translate_outerloop_controller();
+				translate_innerloop_controller();
+		 		compute_gamma_nom();
+				compute_omega_nom();
+				rotate_outerloop_controller();
+
+
+				//generate the thrust and attitude commands, notice, should be in in ENU frame:
+
+				msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				//note the rcdata is not the same with the command sent to LL from HL
+				msg.x =  gamma_nom[1];  //pitch angle
+				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+				msg.z = 0.5*G/(m*g_);
+				}
+
+				break;
+
+			}
+			case 3:
+			{
+				//hovering mode:
+				//run the position control law, all expressed in NED frame
+				compute_V_nom();
+				compute_F_nom();
+				translate_outerloop_controller();
+				translate_innerloop_controller();
+				compute_gamma_nom();
+				compute_omega_nom();
+				rotate_outerloop_controller();
+
+
+				//generate the thrust and attitude commands, notice, should be in in ENU frame:
+				msg.type = asctec_hl_comm::mav_ctrl::acceleration;
+
+				//note the rcdata is not the same with the command sent to LL from HL
+				msg.x =  gamma_nom[1];  //pitch angle
+				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
+				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
+				msg.z = 0.5*G/(m*g_);
+
+				break;
+
+			}
+		}
+
+	}
+
+	if (((rcdata_current.channel[5])<1800) | ((rcdata_current.channel[5])>4000) | (flag_rc_cmd != 1))
+	{
+		//in 3-DOF control mode or hovering mode, record the global commands, to guarantee the switch between different modes is smooth
+
+		global_position_cmd.x = state_feedback.pose.position.x;
+		global_position_cmd.y = state_feedback.pose.position.y;
+		global_position_cmd.z = state_feedback.pose.position.z;
+
+		//below, get the yaw angle
+		double quaternion[4];
+		double R_temp[9];
+		double gamma_temp[3];
+
+		//notice the order of quaternion:
+		quaternion[1] = state_feedback.pose.orientation.x;
+		quaternion[2] = state_feedback.pose.orientation.y;
+		quaternion[3] = state_feedback.pose.orientation.z;
+		quaternion[0] = state_feedback.pose.orientation.w;
+
+		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+		//ENU frame
+		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+		ROS_INFO_STREAM("feedback roll/degree: "<<gamma_temp[0]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback pitch/degree: "<<gamma_temp[1]/3.14159265*180.0);
+		ROS_INFO_STREAM("feedback yaw/degree: "<<gamma_temp[2]/3.14159265*180.0);
+
+        //ENU frame, in rad
+		global_position_cmd.yaw = (float)gamma_temp[2];
+	}
+
+
+	if ((flag_mode_control == 2) | (flag_mode_control == 3))
+	//if (flag_rc_cmd == 1)
+	{   //show the variables in the control
+		//only receive the commands from RC transmitter
+		ROS_INFO_STREAM("pitch angle commands from position control (rad): "<<msg.x);
+		ROS_INFO_STREAM("roll angle commands from position control (rad) (reverse): "<<msg.y);
+		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
+		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
+		printf("commanded global position (ENU)= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
+		printf( "commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
+		printf( "nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
+		printf( "commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
+		printf( "nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
+		printf( "commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
+		printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+		printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
+		printf( "sensed position (NED) = [ %f, %f, %f] \n", P_sen[0], P_sen[1], P_sen[2]);
+		printf( "sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+		printf( "position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
+
+		printf( "flag_mode_control =  %d  \n", flag_mode_control);
+	}
+
+	llcmd_pub_acc.publish(msg); //send commands to HLP
+
+    ext_state.publish(state_feedback);
+
+    rcdata_last = rcdata_current; //record the rcdata of last time
+
+    int64_t ts_usec_finish;
+    double time_period;
+	ts_usec_finish = (uint64_t)(ros::WallTime::now().toSec() * 1.0e6);
+	time_period =(double)(ts_usec_finish - ts_usec)/1.0e6;  //actual time used in calculation
+
+ 	ROS_INFO_STREAM("Time of each control period: "<<(time_period));
+
+
+
+}
 
 
 void TeleopIMU::flagcmdCallback(const asctec_mav_motion_planning::flag_cmdConstPtr&  flagcmd){
@@ -384,6 +892,12 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 
 
 void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata){
+
+
+	rcdata_current = *rcdata;
+
+
+	/*
 	//k_stick_yaw_
 	//int k_stick_;
 
@@ -398,6 +912,7 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 
 //	flag_ini_control = 1; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
 //	flag_mode_control = 1; //used in the control mode selection , 1, 2, 3, initial value is 1,
+
 
 
 
@@ -888,6 +1403,8 @@ void TeleopIMU::rcdataCallback(const asctec_hl_comm::mav_rcdataConstPtr& rcdata)
 	time_period =(double)(ts_usec_finish - ts_usec)/1.0e6;  //actual time used in calculation
 
  	ROS_INFO_STREAM("Time of each control period: "<<(time_period));
+
+ 	*/
 
 }
 
