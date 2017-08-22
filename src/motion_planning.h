@@ -315,6 +315,7 @@ private:
 	//used in simulation:
 	double P_sim[3];
 	double V_sim[3];
+	double yaw_sim;
 	double gamma_sim[3];
 	double m_sim;
 	double g_sim; //acc due to gravity

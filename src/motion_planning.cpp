@@ -180,7 +180,7 @@ pnh_("~/fcu")
     	omega_trans_in_z=0.8;
 
 		//sampling time:
-		T_sampling = 0.05;
+		T_sampling = 0.01;
 		time_scale_position = 1;  //the scale of the sampling time of the position time compared to attitude loop
 
 		m = 1.35;
@@ -195,6 +195,7 @@ pnh_("~/fcu")
     		V_sim[j] = 0;
     		gamma_sim[j] = 0;
     	}
+    	yaw_sim = 0;
     	m_sim = 1.31;
     	g_sim = 9.8;
     	flag_sim = 1;
@@ -218,7 +219,7 @@ pnh_("~/fcu")
     state_feedback.pose.position.y=0;
     state_feedback.pose.position.z=0;
 
-    T_sampling_global = 0.01;
+    T_sampling_global = T_sampling;
     timer_pubstate = n.createTimer(ros::Duration(T_sampling_global), &TeleopIMU::timerCallback, this);  //timer used to publish state, should be at least for some minimal frequency
 
     int_dis = 0;
@@ -249,15 +250,6 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 		//the control law is expressed in NED
 		//the feedback information is expressed in ENU:
 
-		//real world, not simulation:
-			P_sen[0] = state_feedback.pose.position.x;
-			P_sen[1] = -state_feedback.pose.position.y;
-			P_sen[2] = -state_feedback.pose.position.z;
-
-			V_sen[0] = state_feedback.velocity.x;
-			V_sen[1] = -state_feedback.velocity.y;
-			V_sen[2] = -state_feedback.velocity.z;
-
 		if(flag_sim == 1)
 		{//simulation:
 			state_feedback.pose.position.x = P_sim[0];
@@ -267,37 +259,74 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 			state_feedback.velocity.x= V_sim[0];
 			state_feedback.velocity.y = -V_sim[1];
 			state_feedback.velocity.z = -V_sim[2];
+
+			//convert it to quaternion:
+			double R_temp_2[9];
+			double quaternion_2[4];
+			double gamma_sim[3] = {gamma_com[0], -gamma_com[1], -yaw_sim};  //ENU
+
+			math_function::computeR(&gamma_sim[0], &R_temp_2[0]);
+			math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
+
+			state_feedback.pose.orientation.x = quaternion_2[1];
+			state_feedback.pose.orientation.y = quaternion_2[2];
+			state_feedback.pose.orientation.z = quaternion_2[3];
+			state_feedback.pose.orientation.w = quaternion_2[0];
+
+
 			if(flag_sim == 1)
 			{
 				translation_eom();
 
-
 				if (int_dis%10 == 0){
-					printf( "\n  simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
-					printf( "\n  simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+					printf( "simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
+					printf( "simulated velocity = [ %f, %f, %f] \n\n", V_sim[0], V_sim[1], V_sim[2]);
 				}
 			}
+
+			gamma_sen[0] = gamma_com[0];
+			gamma_sen[1] = gamma_com[1];
+			gamma_sen[2] = yaw_sim;
+
+			P_sen[0] = state_feedback.pose.position.x;
+			P_sen[1] = -state_feedback.pose.position.y;
+			P_sen[2] = -state_feedback.pose.position.z;
+
+			V_sen[0] = state_feedback.velocity.x;
+			V_sen[1] = -state_feedback.velocity.y;
+			V_sen[2] = -state_feedback.velocity.z;
 		}
+		else
+		{
+			//real world, not simulation:
+			P_sen[0] = state_feedback.pose.position.x;
+			P_sen[1] = -state_feedback.pose.position.y;
+			P_sen[2] = -state_feedback.pose.position.z;
 
-		//below, get the yaw angle
-		double quaternion[4];
-		double R_temp[9];
-		double gamma_temp[3];
+			V_sen[0] = state_feedback.velocity.x;
+			V_sen[1] = -state_feedback.velocity.y;
+			V_sen[2] = -state_feedback.velocity.z;
 
-		//notice the order of quaternion:
-		quaternion[1] = state_feedback.pose.orientation.x;
-		quaternion[2] = state_feedback.pose.orientation.y;
-		quaternion[3] = state_feedback.pose.orientation.z;
-		quaternion[0] = state_feedback.pose.orientation.w;
+			//below, get the yaw angle
+			double quaternion[4];
+			double R_temp[9];
+			double gamma_temp[3];
 
-		math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
-		//ENU frame
-		math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+			//notice the order of quaternion:
+			quaternion[1] = state_feedback.pose.orientation.x;
+			quaternion[2] = state_feedback.pose.orientation.y;
+			quaternion[3] = state_feedback.pose.orientation.z;
+			quaternion[0] = state_feedback.pose.orientation.w;
 
-		//NED frame:
-		gamma_sen[0] = gamma_temp[0];
-		gamma_sen[1] = -gamma_temp[1];
-		gamma_sen[2] = -gamma_temp[2];
+			math_function::quaternion_to_R(&quaternion[0], &R_temp[0]);
+			//ENU frame
+			math_function::RtoEulerangle(&R_temp[0], &gamma_temp[0]);
+
+			//NED frame:
+			gamma_sen[0] = gamma_temp[0];
+			gamma_sen[1] = -gamma_temp[1];
+			gamma_sen[2] = -gamma_temp[2];
+		}
 	}
 
 
@@ -610,6 +639,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 					P_nom[1] = -global_position_cmd.y;
 					P_nom[2] = -global_position_cmd.z;
 					gamma_nom[2] = -global_position_cmd.yaw;
+					gamma_com[2] = gamma_nom[2];
 				}
 
 				//run the position control law, all expressed in NED frame
@@ -716,23 +746,27 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 	//		ROS_INFO_STREAM("yaw angular velocity commands from position control (rad/s) (reverse): "<<msg.yaw);
 	//		ROS_INFO_STREAM("thrust commands (from 0 to 1): "<<msg.z);
 			ROS_INFO("send to HLP (rad, rand/s, 0-1) = [ %f, %f, %f, %f]", msg.x, msg.y, msg.z, msg.yaw);
-			printf("commanded global position (ENU)= [ %f, %f, %f] \n ", global_position_cmd.x, global_position_cmd.y, global_position_cmd.z );
+			printf( "commanded global position (ENU)= [ %f, %f, %f, %f] \n", global_position_cmd.x,
+					global_position_cmd.y, global_position_cmd.z, global_position_cmd.yaw );
 			printf( "commanded position (NED) = [ %f, %f, %f, %f] \n", P_nom[0], P_nom[1], P_nom[2], gamma_nom[2]);
-			printf( "sensed position (NED) = [ %f, %f, %f, %f] \n ", P_sen[0], P_sen[1], P_sen[2], gamma_sen[2]);
+			printf( "sensed position (NED) = [ %f, %f, %f, %f] \n  \n", P_sen[0], P_sen[1], P_sen[2], gamma_sen[2]);
 
 			printf( "nominal velocity (NED) = [ %f, %f, %f, %f] \n", V_nom[0], V_nom[1], V_nom[2], omega_nom[2]);
 			printf( "commanded velocity (NED) = [ %f, %f, %f, %f] \n", V_com[0], V_com[1], V_com[2], omega_com[2]);
-			printf( "sensed velocity (NED) = [ %f, %f, %f] \n", V_sen[0], V_sen[1], V_sen[2]);
+			printf( "sensed velocity (NED) = [ %f, %f, %f] \n  \n", V_sen[0], V_sen[1], V_sen[2]);
 
 			printf( "nominal force (NED) = [ %f, %f, %f] \n", F_nom[0], F_nom[1], F_nom[2]);
 			printf( "commanded force (NED) = [ %f, %f, %f] \n", F_com[0], F_com[1], F_com[2]);
-			printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
-			printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
+			printf( "commanded force without gravity (NED) = [ %f, %f, %f] \n  \n", Fcom_exg[0], Fcom_exg[1], Fcom_exg[2]);
+
+			printf( "commanded Euler angles/degree (NED)  = [ %f, %f, %f] \n", gamma_com[0]/3.14159265*180.0,
+					gamma_com[1]/3.14159265*180.0, gamma_com[2]/3.14159265*180.0 );
+			printf( "sensed Euler angles/degree (NED) = [ %f, %f, %f] \n  \n", gamma_sen[0]/3.14159265*180.0, gamma_sen[1]/3.14159265*180.0, gamma_sen[2]/3.14159265*180.0);
 
 
 			printf( "position_err integrator = [ %f, %f, %f] \n", P_err_int[0], P_err_int[1], P_err_int[2]);
 
-			printf( "flag_mode_control =  %d  \n", flag_mode_control);
+			printf( "flag_mode_control =  %d  \n  \n", flag_mode_control);
 		}
 	}
 
@@ -752,7 +786,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 
 	if (int_dis%10 == 0){
 
-		ROS_INFO_STREAM("Time of each control period: "<<(time_period));
+		ROS_INFO_STREAM("Time of each control period: \n"<<(time_period));
 	}
 
 
@@ -895,10 +929,13 @@ void TeleopIMU::imudataCallback(const asctec_hl_comm::mav_imuConstPtr& imudata){
 		math_function::computeR(&gamma_temp[0], &R_temp_2[0]);
 		math_function::computequaternion(&R_temp_2[0], &quaternion_2[0]);
 
-		state_feedback.pose.orientation.x = quaternion_2[1];
-		state_feedback.pose.orientation.y = quaternion_2[2];
-		state_feedback.pose.orientation.z = quaternion_2[3];
-		state_feedback.pose.orientation.w = quaternion_2[0];
+		if (flag_sim != 1)
+		{
+			state_feedback.pose.orientation.x = quaternion_2[1];
+			state_feedback.pose.orientation.y = quaternion_2[2];
+			state_feedback.pose.orientation.z = quaternion_2[3];
+			state_feedback.pose.orientation.w = quaternion_2[0];
+		}
 	}
 
 
@@ -2328,6 +2365,8 @@ void TeleopIMU::translation_eom(void)
 	V_sim[0] = (V_sim[0] - R_temp_2[2]*G*T_sampling)/m_sim;
 	V_sim[1] = (V_sim[1] - R_temp_2[5]*G*T_sampling)/m_sim;
 	V_sim[2] = (V_sim[2] - R_temp_2[8]*G*T_sampling + m_sim*g_sim*T_sampling)/m_sim;
+
+	yaw_sim = yaw_sim + omega_com[2]*T_sampling;
 
 //	V_sim[0] = V_sim[0] + ( F_com[0]*T_sampling)/m_sim;
 //	V_sim[1] = V_sim[1] + (F_com[1]*T_sampling)/m_sim;
