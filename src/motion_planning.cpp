@@ -183,7 +183,7 @@ pnh_("~/fcu")
 		T_sampling = 0.01;
 		time_scale_position = 1;  //the scale of the sampling time of the position time compared to attitude loop
 
-		m = 1.35;
+		m = 1.5;
 		g_ = 9.8;
 		G=0;
     }
@@ -198,7 +198,7 @@ pnh_("~/fcu")
     	yaw_sim = 0;
     	m_sim = 1.31;
     	g_sim = 9.8;
-    	flag_sim = 1;
+    	flag_sim = 0;
     }
 
 	flag_ini_control = 0; //used in the initialization of control, 1, 2, 3, 4, 5, initial value is 1
@@ -280,7 +280,8 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 
 				if (int_dis%10 == 0){
 					printf( "simulated position = [ %f, %f, %f] \n", P_sim[0], P_sim[1], P_sim[2]);
-					printf( "simulated velocity = [ %f, %f, %f] \n\n", V_sim[0], V_sim[1], V_sim[2]);
+					printf( "simulated velocity = [ %f, %f, %f] \n", V_sim[0], V_sim[1], V_sim[2]);
+					printf("total thrust = %f \n\n", G);
 				}
 			}
 
@@ -660,7 +661,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 				msg.x =  gamma_nom[1];  //pitch angle
 				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
 				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
-				msg.z = 0.5*G/(m*g_);
+				msg.z = 0.55*G/(m*g_);
 				}
 
 				break;
@@ -686,7 +687,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 				msg.x =  gamma_nom[1];  //pitch angle
 				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
 				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
-				msg.z = 0.5*G/(m*g_);
+				msg.z = 0.55*G/(m*g_);
 
 				break;
 
@@ -2356,15 +2357,26 @@ void TeleopIMU::translation_eom(void)
 	double R_temp_2[9];
 	double quaternion_2[4];
 
-	math_function::computeR(&gamma_com[0], &R_temp_2[0]);
+
+
+	double gamma_com_sim[3];
+	gamma_com_sim[0] = gamma_nom[0];
+	gamma_com_sim[1] = gamma_nom[1];
+	gamma_com_sim[2] = yaw_sim;
+
+	math_function::computeR(&gamma_com_sim[0], &R_temp_2[0]);
 
 	for(int i = 0; i < 3; i++)
 	{
 		P_sim[i] = P_sim[i]  + T_sampling*V_sim[i];
 	}
-	V_sim[0] = (V_sim[0] - R_temp_2[2]*G*T_sampling)/m_sim;
-	V_sim[1] = (V_sim[1] - R_temp_2[5]*G*T_sampling)/m_sim;
-	V_sim[2] = (V_sim[2] - R_temp_2[8]*G*T_sampling + m_sim*g_sim*T_sampling)/m_sim;
+//	V_sim[0] = V_sim[0] - (R_temp_2[2]*G*T_sampling)/m_sim;
+//	V_sim[1] = V_sim[1] - (R_temp_2[5]*G*T_sampling)/m_sim;
+//	V_sim[2] = V_sim[2] - (R_temp_2[8]*G*T_sampling + m_sim*g_sim*T_sampling)/m_sim;
+
+	V_sim[0] = V_sim[0] - (R_temp_2[2]*G*T_sampling)/m_sim;
+	V_sim[1] = V_sim[1] - (R_temp_2[5]*G*T_sampling)/m_sim;
+	V_sim[2] = V_sim[2] - (R_temp_2[8]*G*T_sampling - m_sim*g_sim*T_sampling)/m_sim;
 
 	yaw_sim = yaw_sim + omega_com[2]*T_sampling;
 
