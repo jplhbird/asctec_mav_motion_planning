@@ -93,9 +93,9 @@ private:
 
     ros::Publisher pub3;
 
-    ros::Publisher llcmd_pub_acc;
+    ros::Publisher cmd_pub_pos;
 
-    ros::Publisher llcmd_pub_vel;
+    ros::Publisher llcmd_pub_acc;
 
     ros::Publisher ext_state;
     ros::Publisher position_gps;  //publish the position from GPS
@@ -134,6 +134,7 @@ private:
 
 
     asctec_hl_comm::mav_ctrl global_position_cmd; //global position commands, used to calculate the position commands from RC transmitter
+    asctec_hl_comm::mav_ctrl local_position_cmd; //global position commands, used to calculate the position commands from RC transmitter
 
     int64_t time;
     double time_body, time_doby_last;

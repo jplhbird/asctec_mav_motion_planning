@@ -20,7 +20,7 @@ pnh_("~/fcu")
 
     llcmd_pub_acc = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_inteface
    // llcmb_pubrate.Rate(20);//20HZ
-    llcmd_pub_vel = n.advertise<asctec_hl_comm::mav_ctrl>("fcu/control",1); //command to HL_interface
+    cmd_pub_pos = n.advertise<asctec_hl_comm::mav_ctrl>("positioncmd",1); //position commands
     ext_state=n.advertise<sensor_fusion_comm::ExtState>("fcu/state", 1); //external state, to interface of asctec
     pub2=n.advertise<geometry_msgs::PoseStamped>("command/pose",1); //command to quadrotor
     pub3 = n.advertise<geometry_msgs::TwistStamped>("command/twist",1); //velocity command to quadrotor
@@ -643,6 +643,8 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 					gamma_com[2] = gamma_nom[2];
 				}
 
+				local_position_cmd = global_position_cmd;
+
 				//run the position control law, all expressed in NED frame
 				compute_V_nom();
 				compute_F_nom();
@@ -688,6 +690,12 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 				msg.y =  -gamma_nom[0];   //opposite direction, roll angle
 				msg.yaw = -omega_com[2];   //opposite direction, yaw rate
 				msg.z = 0.55*G/(m*g_);
+
+				local_position_cmd.x =  P_nom[0];
+				local_position_cmd.y =   -P_nom[1];
+				local_position_cmd.yaw =  -gamma_com[2];
+				local_position_cmd.z =  -P_nom[2];
+
 
 				break;
 
@@ -775,6 +783,7 @@ void TeleopIMU::timerCallback(const ros::TimerEvent& event){
 
 
 	llcmd_pub_acc.publish(msg); //send commands to HLP
+	cmd_pub_pos.publish(local_position_cmd); //the position commands
 
     ext_state.publish(state_feedback);
 
